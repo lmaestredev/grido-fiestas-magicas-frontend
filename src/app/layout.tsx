@@ -29,6 +29,27 @@ export const metadata: Metadata = {
   title: "Grido Fiestas Mágicas - Enviá tu saludo navideño",
   description:
     "Creá un saludo mágico de la mano de Papá Noel y Grido para estas fiestas",
+  openGraph: {
+    title: "Grido Fiestas Mágicas - Enviá tu saludo navideño",
+    description:
+      "Creá un saludo mágico de la mano de Papá Noel y Grido para estas fiestas",
+    images: [
+      {
+        url: "/images/hero-background.png",
+        width: 1280,
+        height: 831,
+        alt: "Grido Fiestas Mágicas",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Grido Fiestas Mágicas - Enviá tu saludo navideño",
+    description:
+      "Creá un saludo mágico de la mano de Papá Noel y Grido para estas fiestas",
+    images: ["/images/hero-background.png"],
+  },
 };
 
 export default function RootLayout({

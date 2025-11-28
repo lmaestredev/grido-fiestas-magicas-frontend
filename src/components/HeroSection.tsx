@@ -3,9 +3,11 @@
 import Image from "next/image";
 import { useLenis } from "lenis/react";
 
-// Hero image dimensions from Figma: 1280x831
-const HERO_WIDTH = 1280;
-const HERO_HEIGHT = 831;
+// Hero image dimensions from Figma
+const HERO_DESKTOP_WIDTH = 1280;
+const HERO_DESKTOP_HEIGHT = 831;
+const HERO_MOBILE_WIDTH = 321;
+const HERO_MOBILE_HEIGHT = 385;
 
 export default function HeroSection() {
   const lenis = useLenis();
@@ -22,12 +24,11 @@ export default function HeroSection() {
 
   return (
     <section className="relative w-full overflow-hidden">
-      {/* Container that maintains aspect ratio */}
+      {/* Desktop Hero */}
       <div
-        className="relative w-full"
-        style={{ aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}` }}
+        className="relative w-full hidden md:block"
+        style={{ aspectRatio: `${HERO_DESKTOP_WIDTH}/${HERO_DESKTOP_HEIGHT}` }}
       >
-        {/* Background Image - fills container with contain, scaled slightly to hide 2px transparent border */}
         <Image
           src="/images/hero-background.png"
           alt="Fiestas Mágicas - Grido"
@@ -38,7 +39,7 @@ export default function HeroSection() {
           sizes="100vw"
         />
 
-        {/* CTA Button - 68px height on desktop */}
+        {/* CTA Button Desktop - 68px height */}
         <button
           type="button"
           onClick={scrollToForm}
@@ -50,6 +51,38 @@ export default function HeroSection() {
             alt=""
             width={18}
             height={28}
+            className="object-contain"
+          />
+        </button>
+      </div>
+
+      {/* Mobile Hero */}
+      <div
+        className="relative w-full md:hidden"
+        style={{ aspectRatio: `${HERO_MOBILE_WIDTH}/${HERO_MOBILE_HEIGHT}` }}
+      >
+        <Image
+          src="/images/hero-background-mobile.png"
+          alt="Fiestas Mágicas - Grido"
+          fill
+          className="object-contain object-center"
+          priority
+          quality={100}
+          sizes="100vw"
+        />
+
+        {/* CTA Button Mobile - smaller */}
+        <button
+          type="button"
+          onClick={scrollToForm}
+          className="absolute left-1/2 -translate-x-1/2 bottom-[8%] flex items-center justify-center gap-2 h-[42px] px-6 border border-white rounded-full text-white font-medium text-base hover:bg-white/10 transition-all duration-300 z-10 cursor-pointer min-w-max"
+        >
+          Enviá tu saludo
+          <Image
+            src="/icons/arrow-down.svg"
+            alt=""
+            width={10}
+            height={12}
             className="object-contain"
           />
         </button>
