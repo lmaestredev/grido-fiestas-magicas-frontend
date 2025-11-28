@@ -3,7 +3,10 @@
 import { useActionState, useRef } from "react";
 import Image from "next/image";
 import { motion, useScroll, useTransform, useSpring } from "motion/react";
-import { sendGreeting, type GreetingFormState } from "~/app/actions/sendGreeting";
+import {
+  sendGreeting,
+  type GreetingFormState,
+} from "~/app/actions/sendGreeting";
 import { PROVINCIAS_ARGENTINA, EMAIL_DOMAINS } from "~/lib/constants";
 
 const initialState: GreetingFormState = {
@@ -76,7 +79,10 @@ function FloatingGift({
 }
 
 export default function FormSection() {
-  const [state, formAction, isPending] = useActionState(sendGreeting, initialState);
+  const [state, formAction, isPending] = useActionState(
+    sendGreeting,
+    initialState,
+  );
   const sectionRef = useRef<HTMLElement>(null);
 
   // Scroll progress for parallax
@@ -92,12 +98,12 @@ export default function FormSection() {
       className="relative w-full bg-white py-16 overflow-hidden"
     >
       {/* Decorative floating gifts with parallax */}
-      {/* Gift box - top left (small) */}
+      {/* Gift box - top left */}
       <FloatingGift
         src="/images/regalo-rojo.png"
         alt="Regalo decorativo"
-        size="7vw"
-        className="absolute left-[2%] top-[3%] hidden lg:block"
+        size="12vw"
+        className="absolute left-[5%] top-[25%] hidden lg:block"
         floatDuration={4}
         floatDelay={0}
         floatAmount={12}
@@ -106,12 +112,12 @@ export default function FormSection() {
         scrollYProgress={scrollYProgress}
       />
 
-      {/* Gift box - top right (medium) */}
+      {/* Gift box - top right (orange) */}
       <FloatingGift
-        src="/images/regalo-rojo.png"
-        alt="Regalo rojo"
-        size="9vw"
-        className="absolute right-[1%] top-[2%] hidden lg:block"
+        src="/images/regalo-naranja.png"
+        alt="Regalo naranja"
+        size="15vw"
+        className="absolute right-[4%] top-[25%] hidden lg:block"
         floatDuration={5}
         floatDelay={0.5}
         floatAmount={10}
@@ -120,12 +126,12 @@ export default function FormSection() {
         scrollYProgress={scrollYProgress}
       />
 
-      {/* Gift box - bottom right (large) */}
+      {/* Gift box - bottom right (largest) */}
       <FloatingGift
         src="/images/regalo-rojo.png"
         alt="Regalo rojo grande"
-        size="16vw"
-        className="absolute right-[-2%] bottom-[8%] hidden lg:block"
+        size="35vw"
+        className="absolute right-[-12%] top-[40%] hidden lg:block"
         floatDuration={4.5}
         floatDelay={1}
         floatAmount={8}
@@ -134,12 +140,12 @@ export default function FormSection() {
         scrollYProgress={scrollYProgress}
       />
 
-      {/* Green gift box - bottom left (medium-large) */}
+      {/* Green gift box - bottom left (large) */}
       <FloatingGift
         src="/images/regalo-lazo.png"
         alt="Regalo con lazo"
-        size="12vw"
-        className="absolute left-[-1%] bottom-[18%] hidden lg:block"
+        size="30vw"
+        className="absolute left-[-8%] top-[45%] hidden lg:block"
         floatDuration={4.2}
         floatDelay={1.5}
         floatAmount={10}
@@ -188,7 +194,9 @@ export default function FormSection() {
                 className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20"
               />
               {state.errors?.nombre && (
-                <p className="text-red-500 text-sm mt-1">{state.errors.nombre}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {state.errors.nombre}
+                </p>
               )}
             </div>
 
@@ -200,7 +208,9 @@ export default function FormSection() {
                 className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-lg placeholder:text-grido-placeholder"
               />
               {state.errors?.parentesco && (
-                <p className="text-red-500 text-sm mt-1">{state.errors.parentesco}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {state.errors.parentesco}
+                </p>
               )}
             </div>
 
@@ -213,7 +223,9 @@ export default function FormSection() {
                   className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-lg placeholder:text-grido-placeholder"
                 />
                 {state.errors?.email && (
-                  <p className="text-red-500 text-sm mt-1">{state.errors.email}</p>
+                  <p className="text-red-500 text-sm mt-1">
+                    {state.errors.email}
+                  </p>
                 )}
               </div>
               <div className="sm:w-[180px]">
@@ -239,7 +251,9 @@ export default function FormSection() {
                   />
                 </div>
                 {state.errors?.emailDomain && (
-                  <p className="text-red-500 text-sm mt-1">{state.errors.emailDomain}</p>
+                  <p className="text-red-500 text-sm mt-1">
+                    {state.errors.emailDomain}
+                  </p>
                 )}
               </div>
             </div>
@@ -275,7 +289,9 @@ export default function FormSection() {
                 className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"
               />
               {state.errors?.provincia && (
-                <p className="text-red-500 text-sm mt-1">{state.errors.provincia}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {state.errors.provincia}
+                </p>
               )}
             </div>
 
@@ -287,7 +303,9 @@ export default function FormSection() {
                 className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-lg placeholder:text-grido-placeholder resize-none"
               />
               {state.errors?.queHizo && (
-                <p className="text-red-500 text-sm mt-1">{state.errors.queHizo}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {state.errors.queHizo}
+                </p>
               )}
             </div>
 
@@ -299,7 +317,9 @@ export default function FormSection() {
                 className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-lg placeholder:text-grido-placeholder resize-none"
               />
               {state.errors?.recuerdoEspecial && (
-                <p className="text-red-500 text-sm mt-1">{state.errors.recuerdoEspecial}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {state.errors.recuerdoEspecial}
+                </p>
               )}
             </div>
 
@@ -311,7 +331,9 @@ export default function FormSection() {
                 className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-lg placeholder:text-grido-placeholder resize-none"
               />
               {state.errors?.pedidoNocheMagica && (
-                <p className="text-red-500 text-sm mt-1">{state.errors.pedidoNocheMagica}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {state.errors.pedidoNocheMagica}
+                </p>
               )}
             </div>
           </div>
