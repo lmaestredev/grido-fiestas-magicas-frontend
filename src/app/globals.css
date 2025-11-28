@@ -1,26 +1,139 @@
 @import "tailwindcss";
 
+/* Lenis smooth scroll styles */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Grido Brand Colors */
+  --grido-primary: #2e24ab;
+  --grido-primary-dark: #10059f;
+  --grido-blue-light: #4a90e2;
+  --grido-placeholder: #8c8c8c;
+  --grido-yellow: #ffd700;
+  --grido-red: #e63946;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Grido Colors for Tailwind */
+  --color-grido-primary: var(--grido-primary);
+  --color-grido-primary-dark: var(--grido-primary-dark);
+  --color-grido-blue-light: var(--grido-blue-light);
+  --color-grido-placeholder: var(--grido-placeholder);
+  --color-grido-yellow: var(--grido-yellow);
+  --color-grido-red: var(--grido-red);
+
+  --font-sans: var(--font-gotham-rounded);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-gotham-rounded), Arial, Helvetica, sans-serif;
+}
+
+/* Remove default focus outline and add custom */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--grido-primary);
+  box-shadow: 0 0 0 2px rgba(46, 36, 171, 0.2);
+}
+
+/* Custom scrollbar for the page */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--grido-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--grido-primary-dark);
+}
+
+/* Floating animations for decorative elements with parallax support */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(calc(var(--parallax-y, 0px) + 0px));
+  }
+  50% {
+    transform: translateY(calc(var(--parallax-y, 0px) + -15px));
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(calc(var(--parallax-y, 0px) + 0px));
+  }
+  50% {
+    transform: translateY(calc(var(--parallax-y, 0px) + -10px));
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(calc(var(--parallax-y, 0px) + -10px));
+  }
+  50% {
+    transform: translateY(calc(var(--parallax-y, 0px) + 5px));
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-slow {
+  animation: float-slow 5s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 4.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-delay-1 {
+  animation-delay: 0.5s;
+}
+
+.animate-float-delay-2 {
+  animation-delay: 1s;
+}
+
+.animate-float-delay-3 {
+  animation-delay: 1.5s;
 }
