@@ -42,7 +42,7 @@ export default function HeroSection() {
         <button
           type="button"
           onClick={scrollToForm}
-          className="absolute left-1/2 -translate-x-1/2 bottom-[16%] flex items-center justify-center gap-3 h-[68px] px-10 border border-white rounded-full text-white font-bold text-2xl hover:bg-white/10 transition-all duration-300 z-10 cursor-pointer"
+          className="absolute left-1/2 -translate-x-1/2 bottom-[10%] flex items-center justify-center gap-3 h-[68px] px-10 border border-white rounded-full text-white font-bold text-2xl hover:bg-white/10 transition-all duration-300 z-10 cursor-pointer"
         >
           Enviá tu saludo
           <Image

@@ -2,7 +2,7 @@
 
 import { useActionState, useRef } from "react";
 import Image from "next/image";
-import { motion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform, useSpring } from "motion/react";
 import { sendGreeting, type GreetingFormState } from "~/app/actions/sendGreeting";
 import { PROVINCIAS_ARGENTINA, EMAIL_DOMAINS } from "~/lib/constants";
 
@@ -15,59 +15,59 @@ const initialState: GreetingFormState = {
 interface FloatingGiftProps {
   src: string;
   alt: string;
-  width: number;
-  height: number;
+  size: string; // Use vw units for responsive sizing
   className: string;
   floatDuration?: number;
   floatDelay?: number;
+  floatAmount?: number;
   rotateRange?: number;
-  parallaxSpeed?: number;
+  parallaxRange?: [number, number];
   scrollYProgress: ReturnType<typeof useScroll>["scrollYProgress"];
 }
 
 function FloatingGift({
   src,
   alt,
-  width,
-  height,
+  size,
   className,
   floatDuration = 4,
   floatDelay = 0,
+  floatAmount = 15,
   rotateRange = 3,
-  parallaxSpeed = 0.1,
+  parallaxRange = [30, -30],
   scrollYProgress,
 }: FloatingGiftProps) {
-  // Parallax based on scroll
-  const y = useTransform(scrollYProgress, [0, 1], [0, -100 * parallaxSpeed]);
+  // Smooth parallax based on scroll
+  const rawY = useTransform(scrollYProgress, [0, 1], parallaxRange);
+  const y = useSpring(rawY, { stiffness: 100, damping: 30 });
 
   return (
     <motion.div
       className={className}
-      style={{ y }}
+      style={{ y, width: size, height: size }}
       animate={{
-        y: [0, -15, 0],
+        translateY: [0, -floatAmount, 0],
         rotate: [-rotateRange, rotateRange, -rotateRange],
       }}
       transition={{
-        y: {
+        translateY: {
           duration: floatDuration,
           repeat: Infinity,
           ease: "easeInOut",
           delay: floatDelay,
         },
         rotate: {
-          duration: floatDuration * 1.2,
+          duration: floatDuration * 1.3,
           repeat: Infinity,
           ease: "easeInOut",
-          delay: floatDelay,
+          delay: floatDelay + 0.2,
         },
       }}
     >
       <Image
         src={src}
         alt={alt}
-        width={width}
-        height={height}
+        fill
         quality={100}
         className="object-contain"
       />
@@ -92,59 +92,59 @@ export default function FormSection() {
       className="relative w-full bg-white py-16 overflow-hidden"
     >
       {/* Decorative floating gifts with parallax */}
-      {/* Gift box - top left */}
+      {/* Gift box - top left (small) */}
       <FloatingGift
         src="/images/regalo-rojo.png"
         alt="Regalo decorativo"
-        width={134}
-        height={134}
-        className="absolute left-[8%] top-[8%] hidden lg:block"
+        size="7vw"
+        className="absolute left-[2%] top-[3%] hidden lg:block"
         floatDuration={4}
         floatDelay={0}
-        rotateRange={4}
-        parallaxSpeed={0.15}
+        floatAmount={12}
+        rotateRange={5}
+        parallaxRange={[60, -40]}
         scrollYProgress={scrollYProgress}
       />
 
-      {/* Gift box - top right */}
+      {/* Gift box - top right (medium) */}
       <FloatingGift
         src="/images/regalo-rojo.png"
         alt="Regalo rojo"
-        width={180}
-        height={180}
-        className="absolute right-[5%] top-[8%] hidden lg:block"
+        size="9vw"
+        className="absolute right-[1%] top-[2%] hidden lg:block"
         floatDuration={5}
         floatDelay={0.5}
-        rotateRange={3}
-        parallaxSpeed={0.1}
+        floatAmount={10}
+        rotateRange={4}
+        parallaxRange={[40, -50]}
         scrollYProgress={scrollYProgress}
       />
 
-      {/* Gift box - bottom right */}
+      {/* Gift box - bottom right (large) */}
       <FloatingGift
         src="/images/regalo-rojo.png"
         alt="Regalo rojo grande"
-        width={320}
-        height={360}
-        className="absolute right-[3%] bottom-[20%] hidden lg:block"
+        size="16vw"
+        className="absolute right-[-2%] bottom-[8%] hidden lg:block"
         floatDuration={4.5}
         floatDelay={1}
-        rotateRange={2}
-        parallaxSpeed={0.2}
+        floatAmount={8}
+        rotateRange={3}
+        parallaxRange={[80, -60]}
         scrollYProgress={scrollYProgress}
       />
 
-      {/* Green gift box - bottom left */}
+      {/* Green gift box - bottom left (medium-large) */}
       <FloatingGift
         src="/images/regalo-lazo.png"
         alt="Regalo con lazo"
-        width={280}
-        height={280}
-        className="absolute left-[5%] bottom-[25%] hidden lg:block"
+        size="12vw"
+        className="absolute left-[-1%] bottom-[18%] hidden lg:block"
         floatDuration={4.2}
         floatDelay={1.5}
-        rotateRange={5}
-        parallaxSpeed={0.18}
+        floatAmount={10}
+        rotateRange={6}
+        parallaxRange={[70, -50]}
         scrollYProgress={scrollYProgress}
       />
 
