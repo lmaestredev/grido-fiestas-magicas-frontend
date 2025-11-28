@@ -254,7 +254,7 @@ export default function FormSection() {
       />
 
       {/* Form Content */}
-      <div className="relative z-10 max-w-[662px] mx-auto pt-[30vmin] px-3 md:px-4">
+      <div className="relative z-10 max-w-[662px] mx-auto pt-[30vmin] md:pt-0 px-3 md:px-4">
         <h2 className="text-grido-primary-dark font-bold text-[24px] md:text-4xl text-center mb-2 md:mb-4">
           ¡Creemos
           <br className="md:hidden" />
