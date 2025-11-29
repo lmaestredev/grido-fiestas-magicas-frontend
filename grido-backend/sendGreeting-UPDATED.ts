@@ -17,6 +17,7 @@ export interface GreetingFormState {
   success: boolean;
   message: string;
   errors?: Partial<Record<keyof GreetingFormData, string>>;
+  videoId?: string;
 }
 
 export async function sendGreeting(
@@ -78,19 +79,43 @@ export async function sendGreeting(
     };
   }
 
-  // Simulate processing (in production, you'd save to DB or send email)
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  try {
+    // Call the video generation API
+    const apiUrl = process.env.VIDEO_API_URL || "http://localhost:8000/api/generate-video";
+    
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.VIDEO_API_SECRET}`,
+      },
+      body: JSON.stringify({
+        nombre: data.nombre,
+        parentesco: data.parentesco,
+        email: `${data.email}${data.emailDomain}`,
+        provincia: data.provincia,
+        queHizo: data.queHizo,
+        recuerdoEspecial: data.recuerdoEspecial,
+        pedidoNocheMagica: data.pedidoNocheMagica,
+      }),
+    });
 
-  // Here you would typically:
-  // 1. Save to database
-  // 2. Send confirmation email
-  // 3. Generate the greeting card/video
-  // 4. etc.
+    if (!response.ok) {
+      throw new Error("Error al procesar el video");
+    }
 
-  console.log("Greeting submitted:", data);
+    const result = await response.json();
 
-  return {
-    success: true,
-    message: "¡Tu saludo mágico fue enviado con éxito! 🎄✨",
-  };
+    return {
+      success: true,
+      message: "¡Tu saludo mágico se está generando! Te llegará por email en unos minutos. 🎄✨",
+      videoId: result.videoId,
+    };
+  } catch (error) {
+    console.error("Error calling video API:", error);
+    return {
+      success: false,
+      message: "Hubo un error al procesar tu solicitud. Por favor intentá de nuevo.",
+    };
+  }
 }
