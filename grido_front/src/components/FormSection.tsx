@@ -257,8 +257,7 @@ export default function FormSection() {
       <div className="relative z-10 max-w-[662px] mx-auto pt-[30vmin] md:pt-0 px-3 md:px-4">
         <h2 className="text-grido-primary-dark font-bold text-[24px] md:text-4xl text-center mb-2 md:mb-4">
           ¡Creemos
-          <br className="md:hidden" />
-          <span className="md:hidden"> </span>
+          <br />
           un saludo mágico!
         </h2>
         <p className="text-center text-black text-[14px] md:text-base mb-6 md:mb-10">
@@ -292,11 +291,13 @@ export default function FormSection() {
             </h3>
 
             <div>
-              <input
+              <motion.input
                 type="text"
                 name="nombre"
                 placeholder="Tu nombre"
-                className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20"
+                className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
+                whileFocus={{ scale: 1.02, borderColor: "#0033A0" }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
               />
               {state.errors?.nombre && (
                 <p className="text-red-500 text-sm mt-1">
@@ -306,11 +307,13 @@ export default function FormSection() {
             </div>
 
             <div>
-              <input
+              <motion.input
                 type="text"
                 name="parentesco"
                 placeholder="Tu parentesco"
-                className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder"
+                className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
+                whileFocus={{ scale: 1.02, borderColor: "#0033A0" }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
               />
               {state.errors?.parentesco && (
                 <p className="text-red-500 text-sm mt-1">
@@ -321,11 +324,13 @@ export default function FormSection() {
 
             <div className="flex flex-row gap-2 md:gap-4">
               <div className="flex-1">
-                <input
+                <motion.input
                   type="text"
                   name="email"
                   placeholder="Tu email"
-                  className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder"
+                  className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
+                  whileFocus={{ scale: 1.02, borderColor: "#0033A0" }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 />
                 {state.errors?.email && (
                   <p className="text-red-500 text-sm mt-1">
@@ -401,11 +406,13 @@ export default function FormSection() {
             </div>
 
             <div>
-              <textarea
+              <motion.textarea
                 name="queHizo"
                 placeholder="Contame que hizo en el año!"
                 rows={3}
-                className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none"
+                className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
+                whileFocus={{ scale: 1.01, borderColor: "#0033A0" }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
               />
               {state.errors?.queHizo && (
                 <p className="text-red-500 text-sm mt-1">
@@ -415,11 +422,13 @@ export default function FormSection() {
             </div>
 
             <div>
-              <textarea
+              <motion.textarea
                 name="recuerdoEspecial"
                 placeholder="¿Un recuerdo especial para mencionarle?"
                 rows={3}
-                className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none"
+                className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
+                whileFocus={{ scale: 1.01, borderColor: "#0033A0" }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
               />
               {state.errors?.recuerdoEspecial && (
                 <p className="text-red-500 text-sm mt-1">
@@ -429,11 +438,13 @@ export default function FormSection() {
             </div>
 
             <div>
-              <textarea
+              <motion.textarea
                 name="pedidoNocheMagica"
                 placeholder="¿Cuál es su pedido de Noche Mágica?"
                 rows={3}
-                className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none"
+                className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
+                whileFocus={{ scale: 1.01, borderColor: "#0033A0" }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
               />
               {state.errors?.pedidoNocheMagica && (
                 <p className="text-red-500 text-sm mt-1">
@@ -445,13 +456,54 @@ export default function FormSection() {
 
           {/* Submit Button - smaller on mobile */}
           <div className="flex justify-center pt-2 md:pt-4">
-            <button
+            <motion.button
               type="submit"
               disabled={isPending}
-              className="bg-grido-primary hover:bg-grido-primary-dark text-white font-medium text-[16px] md:text-lg h-[42px] md:h-auto px-9 md:px-9 md:py-3 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-grido-primary hover:bg-grido-primary-dark text-white font-medium text-[16px] md:text-lg h-[42px] md:h-auto px-9 md:px-9 md:py-3 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+              whileHover={!isPending ? { scale: 1.05 } : {}}
+              whileTap={!isPending ? { scale: 0.95 } : {}}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
-              {isPending ? "Enviando..." : "Enviá tu saludo"}
-            </button>
+              {isPending && (
+                <motion.div
+                  className="absolute inset-0 bg-grido-primary-dark"
+                  initial={{ x: "-100%" }}
+                  animate={{ x: "100%" }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 1.5,
+                    ease: "linear",
+                  }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                {isPending ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1,
+                        ease: "linear",
+                      }}
+                      className="inline-block"
+                    >
+                      <Image
+                        src="/images/grido-logo.png"
+                        alt="Grido"
+                        width={20}
+                        height={14}
+                        quality={100}
+                        className="object-contain"
+                      />
+                    </motion.div>
+                    Enviando...
+                  </>
+                ) : (
+                  "Enviá tu saludo"
+                )}
+              </span>
+            </motion.button>
           </div>
         </form>
       </div>

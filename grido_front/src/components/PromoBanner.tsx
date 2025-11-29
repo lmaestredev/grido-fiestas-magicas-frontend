@@ -15,7 +15,7 @@ export default function PromoBanner() {
         style={{ aspectRatio: `${BANNER_DESKTOP_WIDTH}/${BANNER_DESKTOP_HEIGHT}` }}
       >
         <Image
-          src="/images/footer-banner.png"
+          src="/images/FOOTER-desktop.png"
           alt="Noche Mágica - Traé tu cartita a Papá Noel y llevate 1 helado de regalo. Te esperamos el 18/12, 18hs."
           fill
           className="object-contain object-center scale-[1.002] translate-y-px"
