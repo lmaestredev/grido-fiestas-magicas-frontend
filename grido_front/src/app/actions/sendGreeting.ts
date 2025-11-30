@@ -1,6 +1,7 @@
 "use server";
 
 import { PROVINCIAS_ARGENTINA, EMAIL_DOMAINS } from "~/lib/constants";
+import { validateFormContent } from "~/lib/contentModeration";
 
 export interface GreetingFormData {
   nombre: string;
@@ -76,6 +77,21 @@ export async function sendGreeting(
       success: false,
       message: "Por favor, corregí los errores en el formulario",
       errors,
+    };
+  }
+
+  // Validación de contenido inapropiado
+  const contentValidation = await validateFormContent({
+    queHizo: data.queHizo,
+    recuerdoEspecial: data.recuerdoEspecial,
+    pedidoNocheMagica: data.pedidoNocheMagica,
+  });
+
+  if (!contentValidation.isValid) {
+    return {
+      success: false,
+      message: "Por favor, corregí los errores en el formulario",
+      errors: contentValidation.errors as Partial<Record<keyof GreetingFormData, string>>,
     };
   }
 
