@@ -2,8 +2,7 @@
 
 import Image from "next/image";
 import { useLenis } from "lenis/react";
-import { motion, useScroll, useTransform, useSpring } from "motion/react";
-import { useRef } from "react";
+import { motion } from "motion/react";
 
 // Hero image dimensions from Figma
 const HERO_DESKTOP_WIDTH = 1280;
@@ -13,16 +12,6 @@ const HERO_MOBILE_HEIGHT = 385;
 
 export default function HeroSection() {
   const lenis = useLenis();
-  const desktopHeroRef = useRef<HTMLDivElement>(null);
-
-  const { scrollYProgress } = useScroll({
-    target: desktopHeroRef,
-    offset: ["start end", "end start"],
-  });
-
-  // Parallax solo para los elementos - se mueven hacia arriba al hacer scroll (movimiento muy notorio)
-  const elementsY = useTransform(scrollYProgress, [0, 1], [180, -250]);
-  const elementsYSpring = useSpring(elementsY, { stiffness: 120, damping: 25 });
 
   const scrollToForm = () => {
     const formElement = document.getElementById("formulario");
@@ -38,7 +27,6 @@ export default function HeroSection() {
     <section className="relative w-full overflow-hidden">
       {/* Desktop Hero */}
       <div
-        ref={desktopHeroRef}
         className="relative w-full hidden md:block"
         style={{ aspectRatio: `${HERO_DESKTOP_WIDTH}/${HERO_DESKTOP_HEIGHT}` }}
       >
@@ -55,11 +43,8 @@ export default function HeroSection() {
           />
         </div>
 
-        {/* Elements Image - NoBg.png con parallax más pronunciado */}
-        <motion.div
-          style={{ y: elementsYSpring }}
-          className="absolute inset-0 z-2"
-        >
+        {/* Elements Image - NoBg.png estático */}
+        <div className="absolute inset-0 z-2">
           <Image
             src="/images/hero/NoBg.png"
             alt="Fiestas Mágicas - Grido Elements"
@@ -69,7 +54,7 @@ export default function HeroSection() {
             quality={100}
             sizes="100vw"
           />
-        </motion.div>
+        </div>
 
         {/* CTA Button Desktop - 68px height */}
         <button
