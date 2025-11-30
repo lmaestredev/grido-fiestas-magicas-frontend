@@ -36,7 +36,7 @@ export async function validateContent(
   if (containsProhibitedWords(text)) {
     return {
       isValid: false,
-      reason: `El contenido en "${fieldName}" contiene palabras o frases inapropiadas. Por favor, usá un lenguaje respetuoso.`,
+      reason: `El contenido contiene palabras o frases inapropiadas. Por favor, usá un lenguaje respetuoso.`,
     };
   }
 
@@ -100,7 +100,7 @@ export async function validateContent(
     if (isToxic || isSeverelyToxic || isInsulting || isProfane) {
       return {
         isValid: false,
-        reason: `El contenido en "${fieldName}" no es apropiado. Por favor, usá un lenguaje respetuoso y positivo.`,
+        reason: `El contenido no es apropiado. Por favor, usá un lenguaje respetuoso y positivo.`,
         scores: {
           toxicity,
           severeToxicity,
