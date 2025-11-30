@@ -43,10 +43,10 @@ export default function HeroSection() {
           />
         </div>
 
-        {/* Elements Image - NoBg.png estático */}
+        {/* Elements Image - hero-background.png estático */}
         <div className="absolute inset-0 z-2">
           <Image
-            src="/images/hero/NoBg.png"
+            src="/images/hero-background.png"
             alt="Fiestas Mágicas - Grido Elements"
             fill
             className="object-contain object-center scale-[1.003] -translate-x-[2px] -translate-y-[2px]"
