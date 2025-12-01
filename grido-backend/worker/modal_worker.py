@@ -120,34 +120,9 @@ def concatenate_videos(video_id: str, intro: Path, middle: Path, outro: Path, te
 
 
 def upload_to_r2(video_id: str, file_path: Path) -> str:
-    """Sube video a Cloudflare R2."""
-    import boto3
-    
-    log(video_id, "Subiendo a R2...")
-    
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=os.environ['AWS_ENDPOINT_URL'],
-        aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-        aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
-        region_name='auto'
-    )
-    
-    bucket = os.environ['S3_BUCKET']
-    key = f"videos/{video_id}.mp4"
-    
-    s3_client.upload_file(
-        str(file_path),
-        bucket,
-        key,
-        ExtraArgs={'ContentType': 'video/mp4'}
-    )
-    
-    # URL pública (ajustar según tu configuración de R2)
-    video_url = f"https://{bucket}.r2.dev/{key}"
-    
-    log(video_id, f"Video subido: {video_url}")
-    return video_url
+    """Sube video usando el storage provider configurado."""
+    from storage import upload_video
+    return upload_video(video_id, file_path)
 
 
 def send_email(video_id: str, to_email: str, nombre: str, video_url: str):
@@ -239,10 +214,10 @@ def process_video(video_id: str, data: dict):
         # Prepare script for frame 3
         script_frame3 = FRAME3_TEMPLATE.format(**data)
         
-        # Paths to assets
-        intro_base = Path("/assets/intro_frames1_2.mp4")
-        frame3_base = Path("/assets/frame3_santa_base.mp4")
-        outro = Path("/assets/outro_frame4.mp4")
+        # Paths to assets (usando videos .mov para mantener transparencia)
+        intro_base = Path("/assets/Frames_1_2_to_3.mov")
+        frame3_base = Path("/assets/frame3_santa_base.mp4")  # Solo usado en Strategy 1 (lip-sync)
+        outro = Path("/assets/Frame_4_NocheMagica.mov")
         
         # Final video path
         final_video = temp_dir / "video_final.mp4"
@@ -259,6 +234,7 @@ def process_video(video_id: str, data: dict):
         )
         
         # PASO 6: Subir a R2
+        # Subir video (Firebase/Vercel/Railway/S3/R2/Local según STORAGE_TYPE)
         video_url = upload_to_r2(video_id, final_video)
         
         # PASO 7: Enviar email

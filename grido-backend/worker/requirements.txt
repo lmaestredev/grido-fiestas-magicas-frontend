@@ -3,3 +3,7 @@ boto3>=1.28.0
 requests>=2.31.0
 httpx>=0.25.0
 python-dotenv>=1.0.0
+
+# Storage providers (opcionales, instalar según necesidad)
+firebase-admin>=6.0.0  # Para Firebase Storage
+# vercel-blob>=0.1.0  # Para Vercel Blob (descomentar si usas Vercel)

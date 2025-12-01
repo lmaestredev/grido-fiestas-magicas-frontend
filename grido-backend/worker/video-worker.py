@@ -170,7 +170,7 @@ def concatenate_videos(video_id: str, intro: Path, middle: Path, outro: Path) ->
 
 def upload_to_s3(video_id: str, file_path: Path) -> str:
     """
-    Sube el video a S3 y retorna la URL pública.
+    Sube el video usando el storage provider configurado.
     
     Args:
         video_id: ID del video
@@ -179,21 +179,8 @@ def upload_to_s3(video_id: str, file_path: Path) -> str:
     Returns:
         URL pública del video
     """
-    log(video_id, "Subiendo video a S3...")
-    
-    s3_key = f"videos/{video_id}.mp4"
-    
-    s3_client.upload_file(
-        str(file_path),
-        S3_BUCKET,
-        s3_key,
-        ExtraArgs={'ContentType': 'video/mp4'}
-    )
-    
-    video_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
-    
-    log(video_id, f"Video subido: {video_url}")
-    return video_url
+    from storage import upload_video
+    return upload_video(video_id, file_path)
 
 
 def send_email(video_id: str, to_email: str, nombre: str, video_url: str):
@@ -289,10 +276,10 @@ def process_video(video_id: str, data: Dict[str, Any]):
         # Prepare script for frame 3
         script_frame3 = FRAME3_TEMPLATE.format(**data)
         
-        # Paths to assets
-        intro_base = ASSETS_PATH / "intro_frames1_2.mp4"
-        frame3_base = ASSETS_PATH / "frame3_santa_base.mp4"
-        outro = ASSETS_PATH / "outro_frame4.mp4"
+        # Paths to assets (usando videos .mov para mantener transparencia)
+        intro_base = ASSETS_PATH / "Frames_1_2_to_3.mov"
+        frame3_base = ASSETS_PATH / "frame3_santa_base.mp4"  # Solo usado en Strategy 1 (lip-sync)
+        outro = ASSETS_PATH / "Frame_4_NocheMagica.mov"
         
         # Final video path
         final_video = temp_dir / "video_final.mp4"
@@ -308,7 +295,7 @@ def process_video(video_id: str, data: Dict[str, Any]):
             video_id=video_id,
         )
         
-        # PASO 6: Subir a S3
+        # PASO 6: Subir video (Firebase/Vercel/Railway/S3/R2/Local según STORAGE_TYPE)
         video_url = upload_to_s3(video_id, final_video)
         
         # PASO 7: Enviar email
@@ -353,8 +340,16 @@ def main():
                     log(video_id, "Job no encontrado en Redis")
                     continue
                 
+                # Decodificar si es bytes
+                if isinstance(job_data, bytes):
+                    job_data = job_data.decode('utf-8')
+                
                 job = json.loads(job_data)
-                data = job["data"]
+                data = job.get("data", {})
+                
+                # Si data está vacío, intentar usar el job completo como data
+                if not data:
+                    data = job
                 
                 # Procesar video
                 process_video(video_id, data)

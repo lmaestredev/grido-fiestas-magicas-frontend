@@ -14,17 +14,19 @@ from .base import VideoProvider
 class HeyGenVideoProvider(VideoProvider):
     """HeyGen video provider using their API for complete video generation."""
     
-    def __init__(self, api_key: Optional[str] = None, avatar_id: str = "default"):
+    def __init__(self, api_key: Optional[str] = None, avatar_id: Optional[str] = None):
         """
         Initialize HeyGen video provider.
         
         Args:
             api_key: HeyGen API key (defaults to HEYGEN_API_KEY env var)
-            avatar_id: Avatar ID to use (default: "default")
+            avatar_id: Avatar ID to use (defaults to PAPA_NOEL_AVATAR_ID or "default")
         """
         self.api_key = api_key or os.getenv("HEYGEN_API_KEY")
-        self.avatar_id = avatar_id
-        self.api_base_url = "https://api.heygen.com/v1"
+        # Usar avatar de Papá Noel configurado, o fallback a default
+        self.avatar_id = avatar_id or os.getenv("PAPA_NOEL_AVATAR_ID", "default")
+        # HeyGen API v2 endpoint (más reciente)
+        self.api_base_url = os.getenv("HEYGEN_API_BASE_URL", "https://api.heygen.com/v2")
         self.poll_interval = 5  # seconds
         self.max_poll_time = 600  # 10 minutes max
     
@@ -100,20 +102,27 @@ class HeyGenVideoProvider(VideoProvider):
         avatar = avatar_id or self.avatar_id
         
         # Step 1: Create video generation task
-        url = f"{self.api_base_url}/video.generate"
+        # Intentar diferentes endpoints según la versión de la API
+        endpoints_to_try = [
+            f"{self.api_base_url}/video/talking_photo",  # v2 talking photo
+            f"{self.api_base_url}/video.generate",  # v2 (si existe)
+            "https://api.heygen.com/v1/video/talking_photo",  # v1 fallback
+            "https://api.heygen.com/v1/talking_photo",  # alternativa v1
+        ]
         
         headers = {
             "X-Api-Key": self.api_key,
             "Content-Type": "application/json",
         }
         
+        # Estructura de datos según documentación de HeyGen
         data = {
             "video_input_config": {
                 "avatar_id": avatar,
                 "text": script,
             },
             "voice": {
-                "voice_id": kwargs.get("voice_id", "default"),
+                "voice_id": kwargs.get("voice_id") or os.getenv("PAPA_NOEL_VOICE_ID", "default"),
             },
             "caption": kwargs.get("caption", False),
             "dimension": {
@@ -122,6 +131,17 @@ class HeyGenVideoProvider(VideoProvider):
             },
         }
         
+        # Intentar con diferentes estructuras de datos
+        data_variants = [
+            data,  # Estructura original
+            {  # Estructura alternativa
+                "avatar_id": avatar,
+                "text": script,
+                "voice_id": kwargs.get("voice_id", "default"),
+                "caption": kwargs.get("caption", False),
+            },
+        ]
+        
         # Add any additional parameters from kwargs
         if "background" in kwargs:
             data["background"] = kwargs["background"]
@@ -129,15 +149,33 @@ class HeyGenVideoProvider(VideoProvider):
             data["subtitle"] = kwargs["subtitle"]
         
         try:
-            # Submit video generation request
-            response = requests.post(url, json=data, headers=headers, timeout=30)
-            response.raise_for_status()
+            # Intentar diferentes endpoints y estructuras
+            last_error = None
+            task_id = None
             
-            result = response.json()
-            task_id = result.get("data", {}).get("task_id")
+            for url in endpoints_to_try:
+                for data_variant in data_variants:
+                    try:
+                        response = requests.post(url, json=data_variant, headers=headers, timeout=30)
+                        if response.status_code == 200 or response.status_code == 201:
+                            result = response.json()
+                            task_id = result.get("data", {}).get("task_id") or result.get("task_id")
+                            
+                            if task_id:
+                                break  # Éxito, salir de los loops
+                            else:
+                                last_error = f"HeyGen API did not return task_id: {result}"
+                        else:
+                            last_error = f"HeyGen API returned {response.status_code}: {response.text}"
+                    except requests.exceptions.RequestException as e:
+                        last_error = f"HeyGen API request failed for {url}: {str(e)}"
+                        continue
+                
+                if task_id:
+                    break
             
             if not task_id:
-                raise Exception(f"HeyGen API did not return task_id: {result}")
+                raise Exception(f"HeyGen API failed on all endpoints. Last error: {last_error}")
             
             # Step 2: Poll for video completion
             start_time = time.time()

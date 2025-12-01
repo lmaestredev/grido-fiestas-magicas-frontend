@@ -194,6 +194,121 @@ class ProviderManager:
         # All providers failed
         raise Exception(f"All video providers failed. Last error: {str(last_error)}")
     
+    def _compose_videos_with_overlaps(
+        self,
+        intro_video: Path,
+        main_video: Path,
+        outro_video: Path,
+        output_path: Path,
+        video_id: str = "",
+        overlap_frames: int = 15,  # ~0.6 segundos a 25fps
+    ) -> Path:
+        """
+        Compone videos con overlaps para transiciones suaves manteniendo transparencia.
+        
+        Args:
+            intro_video: Video intro (Frames_1_2_to_3.mov)
+            main_video: Video principal generado (HeyGen o lip-sync)
+            outro_video: Video cierre (Frame_4_NocheMagica.mov)
+            output_path: Path donde guardar el video final
+            video_id: Video ID para logging
+            overlap_frames: Número de frames para overlap (default: 15 frames)
+            
+        Returns:
+            Path al video final compuesto
+        """
+        import subprocess
+        import json
+        
+        logger.info(f"[{video_id}] Componiendo videos con overlaps...")
+        
+        # Obtener duraciones de los videos
+        def get_video_duration(video_path: Path) -> float:
+            """Obtiene la duración de un video en segundos."""
+            result = subprocess.run([
+                "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                "-of", "json", str(video_path)
+            ], capture_output=True, text=True, check=True)
+            data = json.loads(result.stdout)
+            return float(data["format"]["duration"])
+        
+        def get_video_fps(video_path: Path) -> float:
+            """Obtiene el FPS de un video."""
+            result = subprocess.run([
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-show_entries", "stream=r_frame_rate", "-of", "json", str(video_path)
+            ], capture_output=True, text=True, check=True)
+            data = json.loads(result.stdout)
+            rate = data["streams"][0]["r_frame_rate"]
+            num, den = map(int, rate.split("/"))
+            return num / den if den > 0 else 25.0
+        
+        intro_duration = get_video_duration(intro_video)
+        main_duration = get_video_duration(main_video)
+        outro_duration = get_video_duration(outro_video)
+        fps = get_video_fps(intro_video)
+        
+        overlap_seconds = overlap_frames / fps
+        
+        # Calcular puntos de inicio para overlaps
+        # Intro termina en intro_duration
+        # Main video empieza en intro_duration - overlap_seconds (overlap con intro)
+        # Outro empieza en intro_duration + main_duration - overlap_seconds (overlap con main)
+        
+        main_start = intro_duration - overlap_seconds
+        outro_start = intro_duration + main_duration - overlap_seconds
+        total_duration = intro_duration + main_duration + outro_duration - (2 * overlap_seconds)
+        
+        logger.info(
+            f"[{video_id}] Duraciones - Intro: {intro_duration:.2f}s, "
+            f"Main: {main_duration:.2f}s, Outro: {outro_duration:.2f}s, "
+            f"Overlap: {overlap_seconds:.2f}s, Total: {total_duration:.2f}s"
+        )
+        
+        # Crear filtro complejo de FFmpeg para composición con overlaps y transparencia
+        # Usamos overlay con alpha para mantener transparencia en .mov
+        filter_complex = (
+            f"[0:v] setpts=PTS-STARTPTS, scale=1080:1920 [intro]; "
+            f"[1:v] setpts=PTS-STARTPTS, scale=1080:1920 [main]; "
+            f"[2:v] setpts=PTS-STARTPTS, scale=1080:1920 [outro]; "
+            f"[intro][main] overlay=0:0:enable='between(t,{main_start},{intro_duration})':alpha=premultiplied [tmp1]; "
+            f"[tmp1][outro] overlay=0:0:enable='between(t,{outro_start},{intro_duration + main_duration})':alpha=premultiplied [v]; "
+            f"[0:a] adelay={0}|{0} [a0]; "
+            f"[1:a] adelay={int(main_start * 1000)}|{int(main_start * 1000)} [a1]; "
+            f"[2:a] adelay={int(outro_start * 1000)}|{int(outro_start * 1000)} [a2]; "
+            f"[a0][a1][a2] amix=inputs=3:duration=longest:dropout_transition=0 [a]"
+        )
+        
+        # Ejecutar FFmpeg con composición
+        # Usar pix_fmt con alpha para mantener transparencia
+        cmd = [
+            "ffmpeg",
+            "-i", str(intro_video),
+            "-i", str(main_video),
+            "-i", str(outro_video),
+            "-filter_complex", filter_complex,
+            "-map", "[v]",
+            "-map", "[a]",
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "23",
+            "-pix_fmt", "yuv420p",  # Cambiar a yuv420p para compatibilidad (sin transparencia en output final)
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-t", str(total_duration),
+            "-y", str(output_path)
+        ]
+        
+        logger.info(f"[{video_id}] Ejecutando FFmpeg con overlaps...")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            logger.error(f"[{video_id}] FFmpeg error: {result.stderr}")
+            raise Exception(f"FFmpeg composition failed: {result.stderr}")
+        
+        logger.info(f"[{video_id}] ✅ Videos compuestos con overlaps")
+        return output_path
+    
     def process_video_with_fallback(
         self,
         intro_video: Path,
@@ -207,22 +322,22 @@ class ProviderManager:
         """
         Process complete video with TTS + lip-sync, falling back to complete video providers if needed.
         
-        This is the main method that implements the full fallback strategy:
-        1. Try Kokoro TTS + MuseTalk lip-sync
-        2. Try ElevenLabs TTS + MuseTalk lip-sync
-        3. Try HeyGen (complete video generation)
+        Este método implementa la composición con overlaps según las especificaciones:
+        - Intro: Frames_1_2_to_3.mov con audio agregado
+        - Main: Video generado por HeyGen o lip-sync (con overlap al final del intro)
+        - Outro: Frame_4_NocheMagica.mov (con overlap al final del main)
         
         Args:
-            intro_video: Path to intro video
-            base_video: Path to base video (frame 3 - Santa)
-            outro_video: Path to outro video
-            script_frame2: Script for frame 2 audio
+            intro_video: Path to intro video (Frames_1_2_to_3.mov)
+            base_video: Path to base video (frame 3 - Santa) - solo usado en Strategy 1
+            outro_video: Path to outro video (Frame_4_NocheMagica.mov)
+            script_frame2: Script for frame 2 audio (VO de Papá Noel para el intro)
             script_frame3: Script for frame 3 (main dialogue)
             output_path: Path where final video should be saved
             video_id: Video ID for logging purposes
             
         Returns:
-            Path to the final concatenated video
+            Path to the final composed video with overlaps
         """
         from pathlib import Path
         import subprocess
@@ -235,7 +350,7 @@ class ProviderManager:
             try:
                 logger.info(f"[{video_id}] Attempting Strategy 1: TTS + lip-sync")
                 
-                # Generate audio for frame 2
+                # Generate audio for frame 2 (VO para el intro)
                 audio_frame2_path = temp_dir / "audio_frame2.wav"
                 audio_frame2 = self.generate_audio_with_fallback(
                     script_frame2, audio_frame2_path, video_id
@@ -248,66 +363,66 @@ class ProviderManager:
                 )
                 
                 # Apply lip-sync to frame 3
-                frame3_lipsync_path = temp_dir / "frame3_lipsync.mp4"
+                frame3_lipsync_path = temp_dir / "frame3_lipsync.mov"
                 frame3_lipsync = self.apply_lipsync_with_fallback(
                     base_video, audio_frame3, frame3_lipsync_path, video_id
                 )
                 
-                # Add audio to intro
-                intro_with_audio_path = temp_dir / "intro_with_audio.mp4"
+                # Add audio to intro (mantener formato .mov para transparencia)
+                intro_with_audio_path = temp_dir / "intro_with_audio.mov"
                 subprocess.run([
                     "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest",
                     "-y", str(intro_with_audio_path)
                 ], check=True, capture_output=True)
                 
-                # Concatenate videos
-                concat_list = temp_dir / "concat_list.txt"
-                with open(concat_list, "w") as f:
-                    f.write(f"file '{intro_with_audio_path.absolute()}'\n")
-                    f.write(f"file '{frame3_lipsync.absolute()}'\n")
-                    f.write(f"file '{outro_video.absolute()}'\n")
-                
-                # Try concatenation without re-encoding
-                result = subprocess.run([
-                    "ffmpeg", "-f", "concat", "-safe", "0", "-i", str(concat_list),
-                    "-c", "copy", "-y", str(output_path)
-                ], capture_output=True)
-                
-                # If that fails, re-encode
-                if result.returncode != 0:
-                    subprocess.run([
-                        "ffmpeg", "-f", "concat", "-safe", "0", "-i", str(concat_list),
-                        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                        "-c:a", "aac", "-b:a", "128k", "-y", str(output_path)
-                    ], check=True, capture_output=True)
-                
-                logger.info(f"[{video_id}] Strategy 1 succeeded: TTS + lip-sync")
-                return output_path
+                # Componer con overlaps
+                return self._compose_videos_with_overlaps(
+                    intro_with_audio_path,
+                    frame3_lipsync,
+                    outro_video,
+                    output_path,
+                    video_id,
+                )
                 
             except Exception as e:
                 logger.warning(f"[{video_id}] Strategy 1 failed: {str(e)}")
-                logger.info(f"[{video_id}] Falling back to Strategy 2: Complete video generation")
+                logger.info(f"[{video_id}] Falling back to Strategy 2: Complete video generation (HeyGen)")
                 
                 # Strategy 2: Use complete video provider (HeyGen)
-                # Generate full script
-                full_script = f"{script_frame2}\n\n{script_frame3}"
+                # Generate full script (solo frame 3, el frame 2 se agrega al intro)
+                # Nota: HeyGen generará solo el video principal de Papá Noel hablando
                 
-                # Generate complete video with HeyGen
-                heygen_output = temp_dir / "heygen_video.mp4"
+                # Generate complete video with HeyGen (solo el diálogo principal)
+                heygen_output = temp_dir / "heygen_video.mov"
                 heygen_video = self.generate_video_with_fallback(
-                    full_script,
+                    script_frame3,  # Solo el script principal
                     avatar_id="santa",  # Default avatar
                     output_path=heygen_output,
                     video_id=video_id,
                 )
                 
-                # Copy to final output
-                import shutil
-                shutil.copy2(heygen_video, output_path)
+                # Agregar audio al intro (VO de Papá Noel)
+                audio_frame2_path = temp_dir / "audio_frame2.wav"
+                audio_frame2 = self.generate_audio_with_fallback(
+                    script_frame2, audio_frame2_path, video_id
+                )
                 
-                logger.info(f"[{video_id}] Strategy 2 succeeded: Complete video generation")
-                return output_path
+                intro_with_audio_path = temp_dir / "intro_with_audio.mov"
+                subprocess.run([
+                    "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
+                    "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest",
+                    "-y", str(intro_with_audio_path)
+                ], check=True, capture_output=True)
+                
+                # Componer con overlaps
+                return self._compose_videos_with_overlaps(
+                    intro_with_audio_path,
+                    heygen_video,
+                    outro_video,
+                    output_path,
+                    video_id,
+                )
                 
         finally:
             # Cleanup temp directory (optional - comment out for debugging)

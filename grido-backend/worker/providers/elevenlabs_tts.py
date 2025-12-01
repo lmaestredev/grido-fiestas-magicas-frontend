@@ -13,16 +13,17 @@ from .base import TTSProvider
 class ElevenLabsTTSProvider(TTSProvider):
     """ElevenLabs TTS provider using their API."""
     
-    def __init__(self, api_key: Optional[str] = None, voice_id: str = "21m00Tcm4TlvDq8ikWAM"):
+    def __init__(self, api_key: Optional[str] = None, voice_id: Optional[str] = None):
         """
         Initialize ElevenLabs TTS provider.
         
         Args:
             api_key: ElevenLabs API key (defaults to ELEVENLABS_API_KEY env var)
-            voice_id: Voice ID to use (default: "21m00Tcm4TlvDq8ikWAM" - Rachel)
+            voice_id: Voice ID to use (defaults to PAPA_NOEL_VOICE_ID or "21m00Tcm4TlvDq8ikWAM")
         """
         self.api_key = api_key or os.getenv("ELEVENLABS_API_KEY")
-        self.voice_id = voice_id
+        # Usar voz de Papá Noel configurada, o fallback a default
+        self.voice_id = voice_id or os.getenv("PAPA_NOEL_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
         self.api_url = "https://api.elevenlabs.io/v1/text-to-speech"
     
     def is_available(self) -> bool:
