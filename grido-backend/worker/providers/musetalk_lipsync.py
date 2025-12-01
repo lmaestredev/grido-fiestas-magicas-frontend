@@ -21,15 +21,39 @@ class MuseTalkLipsyncProvider(LipsyncProvider):
             model_path: Path to MuseTalk model (optional, uses default if not provided)
         """
         self.model_path = model_path or os.getenv("MUSETALK_MODEL_PATH")
-        self.musetalk_script = os.getenv("MUSETALK_SCRIPT_PATH", "musetalk/realtime_inference.py")
+        self.repo_path = Path(os.getenv("MUSETALK_REPO_PATH", "MuseTalk"))
+        
+        # MuseTalk puede tener diferentes scripts según la versión
+        self.musetalk_script = os.getenv("MUSETALK_SCRIPT_PATH")
+        if not self.musetalk_script:
+            # Intentar encontrar el script correcto (están en scripts/)
+            possible_scripts = [
+                self.repo_path / "scripts" / "realtime_inference.py",
+                self.repo_path / "scripts" / "inference.py",
+                self.repo_path / "realtime_inference.py",
+                self.repo_path / "inference.py",
+                self.repo_path / "app.py",
+            ]
+            for script in possible_scripts:
+                if script.exists():
+                    self.musetalk_script = str(script)
+                    break
+            else:
+                self.musetalk_script = str(self.repo_path / "scripts" / "realtime_inference.py")  # Fallback
     
     def is_available(self) -> bool:
         """Check if MuseTalk is available."""
+        # Check if repo path exists and has scripts
+        if self.repo_path.exists():
+            scripts_dir = self.repo_path / "scripts"
+            if scripts_dir.exists() and any(scripts_dir.glob("*.py")):
+                return True
+        
         # Check if model path exists
         if self.model_path and Path(self.model_path).exists():
             return True
         
-        # Try to check if musetalk is installed
+        # Try to check if musetalk is installed as package
         try:
             result = subprocess.run(
                 ["python", "-c", "import musetalk"],
@@ -64,29 +88,52 @@ class MuseTalkLipsyncProvider(LipsyncProvider):
             output_path = output_path.with_suffix(".mp4")
         
         # Method 1: Using MuseTalk CLI if available
-        if Path(self.musetalk_script).exists():
+        musetalk_script_path = Path(self.musetalk_script)
+        if musetalk_script_path.exists():
             result_dir = output_path.parent
             
-            cmd = [
-                "python", "-m", "musetalk.realtime_inference",
-                "--inference_config", "configs/inference/realtime.yaml",
-                "--video_path", str(video),
-                "--audio_path", str(audio),
-                "--result_dir", str(result_dir),
-                "--preparation", "False",
-                "--version", "v15",
-                "--fps", "25",
-            ]
-            
-            if self.model_path:
-                cmd.extend(["--model_path", self.model_path])
-            
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=600  # 10 minutes max
-            )
+            # Cambiar al directorio del repositorio para ejecutar el script
+            original_cwd = Path.cwd()
+            try:
+                os.chdir(self.repo_path)
+                
+                # Usar el script encontrado
+                cmd = [
+                    "python", str(musetalk_script_path.relative_to(self.repo_path)),
+                    "--video_path", str(video.absolute()),
+                    "--audio_path", str(audio.absolute()),
+                    "--result_dir", str(result_dir.absolute()),
+                ]
+                
+                # Agregar parámetros opcionales si existen
+                if self.model_path:
+                    cmd.extend(["--model_path", self.model_path])
+                
+                # Intentar con diferentes estructuras de comandos según la versión
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=600  # 10 minutes max
+                )
+                
+                # Si falla, intentar con estructura alternativa
+                if result.returncode != 0:
+                    # Estructura alternativa para scripts/inference.py
+                    cmd_alt = [
+                        "python", str(musetalk_script_path.relative_to(self.repo_path)),
+                        "--video", str(video.absolute()),
+                        "--audio", str(audio.absolute()),
+                        "--output", str(output_path.absolute()),
+                    ]
+                    result = subprocess.run(
+                        cmd_alt,
+                        capture_output=True,
+                        text=True,
+                        timeout=600
+                    )
+            finally:
+                os.chdir(original_cwd)
             
             if result.returncode != 0:
                 raise Exception(f"MuseTalk lip-sync failed: {result.stderr}")

@@ -47,7 +47,7 @@ class HeyGenVideoProvider(VideoProvider):
         url = f"{self.api_base_url}/video_status.get"
         
         headers = {
-            "X-Api-Key": self.api_key,
+            "X-API-KEY": self.api_key,  # Según documentación: https://docs.heygen.com/docs/quick-start
             "Content-Type": "application/json",
         }
         
@@ -102,43 +102,51 @@ class HeyGenVideoProvider(VideoProvider):
         avatar = avatar_id or self.avatar_id
         
         # Step 1: Create video generation task
-        # Intentar diferentes endpoints según la versión de la API
+        # Según documentación: https://docs.heygen.com/docs/quick-start
+        # El endpoint correcto para "Create Avatar Videos (V2)" es:
+        # POST https://api.heygen.com/v2/avatar/video
+        # O alternativamente: POST https://api.heygen.com/v1/video/talking_photo
         endpoints_to_try = [
+            f"{self.api_base_url}/avatar/video",  # Endpoint v2 más probable
             f"{self.api_base_url}/video/talking_photo",  # v2 talking photo
-            f"{self.api_base_url}/video.generate",  # v2 (si existe)
             "https://api.heygen.com/v1/video/talking_photo",  # v1 fallback
             "https://api.heygen.com/v1/talking_photo",  # alternativa v1
         ]
         
         headers = {
-            "X-Api-Key": self.api_key,
+            "X-API-KEY": self.api_key,  # Según documentación: https://docs.heygen.com/docs/quick-start
             "Content-Type": "application/json",
         }
         
         # Estructura de datos según documentación de HeyGen
-        data = {
-            "video_input_config": {
-                "avatar_id": avatar,
-                "text": script,
-            },
-            "voice": {
-                "voice_id": kwargs.get("voice_id") or os.getenv("PAPA_NOEL_VOICE_ID", "default"),
-            },
-            "caption": kwargs.get("caption", False),
-            "dimension": {
-                "width": 1080,
-                "height": 1920,
-            },
-        }
-        
-        # Intentar con diferentes estructuras de datos
+        # Intentar con diferentes estructuras según la versión de la API
         data_variants = [
-            data,  # Estructura original
-            {  # Estructura alternativa
+            # Estructura v2 (más probable)
+            {
+                "video_input_config": {
+                    "avatar_id": avatar,
+                    "text": script,
+                },
+                "voice": {
+                    "voice_id": kwargs.get("voice_id") or os.getenv("PAPA_NOEL_VOICE_ID", "default"),
+                },
+                "caption": kwargs.get("caption", False),
+                "dimension": {
+                    "width": 1080,
+                    "height": 1920,
+                },
+            },
+            # Estructura v1 (fallback)
+            {
                 "avatar_id": avatar,
                 "text": script,
-                "voice_id": kwargs.get("voice_id", "default"),
+                "voice_id": kwargs.get("voice_id") or os.getenv("PAPA_NOEL_VOICE_ID", "default"),
                 "caption": kwargs.get("caption", False),
+            },
+            # Estructura simplificada
+            {
+                "avatar_id": avatar,
+                "text": script,
             },
         ]
         

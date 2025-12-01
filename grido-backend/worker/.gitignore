@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+
+# Storage
+storage/*.mp4
+storage/*.mov
+storage/*.wav
+storage/*.mp3
+
+# Temporary files
+/tmp/
+*.tmp
+*.log
+
+# Firebase credentials
+firebase-credentials.json
+*-credentials.json
+
+# Repositorios externos (instalar manualmente)
+MuseTalk/
+wav2lip/
