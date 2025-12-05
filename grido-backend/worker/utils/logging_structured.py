@@ -73,8 +73,15 @@ def setup_structured_logging(
     if use_json:
         stdout_handler.setFormatter(StructuredJSONFormatter())
     else:
+        # Formato que maneja video_id opcional
+        class VideoIdFormatter(logging.Formatter):
+            def format(self, record):
+                if not hasattr(record, 'video_id'):
+                    record.video_id = 'N/A'
+                return super().format(record)
+        
         stdout_handler.setFormatter(
-            logging.Formatter(
+            VideoIdFormatter(
                 '%(asctime)s - %(name)s - %(levelname)s - [%(video_id)s] - %(message)s',
                 datefmt='%Y-%m-%d %H:%M:%S'
             )
@@ -89,8 +96,15 @@ def setup_structured_logging(
         if use_json:
             file_handler.setFormatter(StructuredJSONFormatter())
         else:
+            # Formato que maneja video_id opcional
+            class VideoIdFormatter(logging.Formatter):
+                def format(self, record):
+                    if not hasattr(record, 'video_id'):
+                        record.video_id = 'N/A'
+                    return super().format(record)
+            
             file_handler.setFormatter(
-                logging.Formatter(
+                VideoIdFormatter(
                     '%(asctime)s - %(name)s - %(levelname)s - [%(video_id)s] - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S'
                 )

@@ -22,6 +22,8 @@ class HiggsfieldVideoProvider(VideoProvider):
             api_key: Higgsfield API key (defaults to HIGGSFIELD_API_KEY env var)
         """
         self.api_key = api_key or os.getenv("HIGGSFIELD_API_KEY")
+        self.api_key_id = os.getenv("HIGGSFIELD_API_KEY_ID")
+        self.api_key_secret = os.getenv("HIGGSFIELD_API_KEY_SECRET")
         self.api_base_url = os.getenv("HIGGSFIELD_API_BASE_URL", "https://cloud.higgsfield.ai/api")
         self.poll_interval = 5  # seconds
         self.max_poll_time = 600  # 10 minutes max
@@ -120,10 +122,34 @@ class HiggsfieldVideoProvider(VideoProvider):
             f"{self.api_base_url}/video/generate",
         ]
         
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        # Headers variants to try
+        headers_variants = []
+        if self.api_key:
+            headers_variants.append({
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            })
+        if self.api_key_id and self.api_key_secret:
+            headers_variants.extend([
+                {
+                    "Authorization": f"Bearer {self.api_key_id}",
+                    "X-API-Key": self.api_key_secret,
+                    "Content-Type": "application/json",
+                },
+                {
+                    "Authorization": f"Bearer {self.api_key_secret}",
+                    "X-API-Key": self.api_key_id,
+                    "Content-Type": "application/json",
+                },
+                {
+                    "X-API-Key-ID": self.api_key_id,
+                    "X-API-Key-Secret": self.api_key_secret,
+                    "Content-Type": "application/json",
+                },
+            ])
+        
+        if not headers_variants:
+            raise Exception("No Higgsfield API credentials configured")
         
         # Data structures to try
         data_variants = [
@@ -156,19 +182,22 @@ class HiggsfieldVideoProvider(VideoProvider):
                     for data_variant in data_variants:
                         try:
                             response = requests.post(url, json=data_variant, headers=headers, timeout=30)
-                        if response.status_code == 200 or response.status_code == 201:
-                            result = response.json()
-                            task_id = result.get("task_id") or result.get("id") or result.get("generation_id")
-                            
-                            if task_id:
-                                break
+                            if response.status_code == 200 or response.status_code == 201:
+                                result = response.json()
+                                task_id = result.get("task_id") or result.get("id") or result.get("generation_id")
+                                
+                                if task_id:
+                                    break
+                                else:
+                                    last_error = f"Higgsfield API did not return task_id: {result}"
                             else:
-                                last_error = f"Higgsfield API did not return task_id: {result}"
-                        else:
-                            last_error = f"Higgsfield API returned {response.status_code}: {response.text}"
-                    except requests.exceptions.RequestException as e:
-                        last_error = f"Higgsfield API request failed for {url}: {str(e)}"
-                        continue
+                                last_error = f"Higgsfield API returned {response.status_code}: {response.text}"
+                        except requests.exceptions.RequestException as e:
+                            last_error = f"Higgsfield API request failed for {url}: {str(e)}"
+                            continue
+                    
+                    if task_id:
+                        break
                 
                 if task_id:
                     break

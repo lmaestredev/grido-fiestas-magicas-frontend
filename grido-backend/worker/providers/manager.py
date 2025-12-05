@@ -546,15 +546,15 @@ class ProviderManager:
                         "-y", str(intro_with_audio_path)
                     ], check=True, capture_output=True)
                     
-            # Componer con overlaps
-            return self._compose_videos_with_overlaps(
-                intro_with_audio_path,
-                complete_video,
-                outro_video,
-                output_path,
-                video_id,
-            )
-                
+                    # Componer con overlaps
+                    return self._compose_videos_with_overlaps(
+                        intro_with_audio_path,
+                        heygen_video,
+                        outro_video,
+                        output_path,
+                        video_id,
+                    )
+                    
                 except Exception as e2:
                     logger.warning(f"[{video_id}] Strategy 2 failed: {str(e2)}")
                     logger.info(f"[{video_id}] Falling back to Strategy 3: TTS + base video (no lip-sync)")
@@ -602,54 +602,6 @@ class ProviderManager:
                         output_path,
                         video_id,
                     )
-                
-            except Exception as e:
-                logger.warning(f"[{video_id}] Strategy 2 failed: {str(e)}")
-                logger.info(f"[{video_id}] Falling back to Strategy 3: TTS + base video (no lip-sync)")
-                
-                # Strategy 3: TTS + base video (sin lip-sync) - fallback cuando todo falla
-                # Esta es la opción más básica pero funcional: solo agregamos audio al video base
-                
-                # Generate audio for frame 2 (VO para el intro)
-                audio_frame2_path = temp_dir / "audio_frame2.wav"
-                audio_frame2 = self.generate_audio_with_fallback(
-                    script_frame2, audio_frame2_path, video_id
-                )
-                
-                # Generate audio for frame 3
-                audio_frame3_path = temp_dir / "audio_frame3.wav"
-                audio_frame3 = self.generate_audio_with_fallback(
-                    script_frame3, audio_frame3_path, video_id
-                )
-                
-                # Add audio to intro
-                intro_with_audio_path = temp_dir / "intro_with_audio.mov"
-                subprocess.run([
-                    "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
-                    "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                    "-c:a", "aac", "-b:a", "128k", "-shortest",
-                    "-pix_fmt", "yuv420p",
-                    "-y", str(intro_with_audio_path)
-                ], check=True, capture_output=True)
-                
-                # Add audio to frame3 base video (sin lip-sync, solo audio sobre video)
-                frame3_with_audio_path = temp_dir / "frame3_with_audio.mov"
-                subprocess.run([
-                    "ffmpeg", "-i", str(base_video), "-i", str(audio_frame3),
-                    "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                    "-c:a", "aac", "-b:a", "128k", "-shortest",
-                    "-pix_fmt", "yuv420p",
-                    "-y", str(frame3_with_audio_path)
-                ], check=True, capture_output=True)
-                
-                # Componer con overlaps
-                return self._compose_videos_with_overlaps(
-                    intro_with_audio_path,
-                    frame3_with_audio_path,
-                    outro_video,
-                    output_path,
-                    video_id,
-                )
                 
         finally:
             # Cleanup temp directory (optional - comment out for debugging)

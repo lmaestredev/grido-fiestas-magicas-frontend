@@ -97,7 +97,28 @@ export async function sendGreeting(
 
   try {
     // Call the video generation API
-    const apiUrl = process.env.VIDEO_API_URL || "/api/generate-video";
+    // En Server Actions, fetch necesita una URL completa
+    let apiUrl = process.env.VIDEO_API_URL;
+    
+    if (!apiUrl) {
+      // Construir URL completa basada en el entorno
+      // En Server Actions, fetch necesita una URL completa
+      let baseUrl: string;
+      
+      if (process.env.NEXT_PUBLIC_BASE_URL) {
+        baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+      } else if (process.env.VERCEL_URL) {
+        baseUrl = `https://${process.env.VERCEL_URL}`;
+      } else if (process.env.NODE_ENV === "production") {
+        // En producción sin URL configurada, asumir que es la misma URL
+        baseUrl = "";
+      } else {
+        // Desarrollo local
+        baseUrl = "http://localhost:3000";
+      }
+      
+      apiUrl = `${baseUrl}/api/generate-video`;
+    }
     
     const response = await fetch(apiUrl, {
       method: "POST",
