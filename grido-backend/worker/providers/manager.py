@@ -17,7 +17,6 @@ except ImportError:
 from .base import TTSProvider, LipsyncProvider, VideoProvider
 from .kokoro_tts import KokoroTTSProvider
 from .elevenlabs_tts import ElevenLabsTTSProvider
-from .musetalk_lipsync import MuseTalkLipsyncProvider
 from .wav2lip_lipsync import Wav2LipLipsyncProvider
 from .synclabs_lipsync import SyncLabsLipsyncProvider
 from .heygen_video import HeyGenVideoProvider
@@ -30,66 +29,79 @@ logger = logging.getLogger(__name__)
 class ProviderManager:
     """Manages TTS, lip-sync, and video providers with automatic fallback."""
     
-    def __init__(self):
-        """Initialize provider manager with all available providers."""
-        # TTS Providers (in order of preference)
-        self.tts_providers: List[TTSProvider] = []
+    def __init__(self, provider_config=None):
+        """
+        Initialize provider manager with validated providers.
         
-        # Check if providers are disabled via environment variables
+        Args:
+            provider_config: ProviderConfig opcional. Si no se proporciona,
+                            se valida automáticamente (compatibilidad hacia atrás).
+        """
+        # Importar configuración de providers
+        try:
+            from config.providers_config import ProviderConfig, validate_providers
+        except ImportError:
+            # Fallback para compatibilidad: validar manualmente
+            logger.warning("No se pudo importar config.providers_config, usando validación manual")
+            provider_config = None
+        
+        # Usar configuración validada o validar ahora
+        if provider_config is None:
+            try:
+                provider_config = validate_providers()
+            except Exception as e:
+                logger.error(f"Error validando providers: {e}")
+                # Para compatibilidad hacia atrás, intentar inicializar sin validación
+                provider_config = None
+        
+        # Inicializar providers desde configuración validada
+        self.provider_config = provider_config
+        
+        # TTS Providers (para uso en estrategias que requieren TTS)
+        self.tts_providers: List[TTSProvider] = []
+        if provider_config and provider_config.elevenlabs:
+            self.tts_providers.append(provider_config.elevenlabs)
+            logger.info("ElevenLabs TTS provider disponible")
+        
+        # Kokoro (opcional, mantener compatibilidad)
         if not os.getenv("DISABLE_KOKORO", "false").lower() == "true":
             kokoro = KokoroTTSProvider()
             if kokoro.is_available():
                 self.tts_providers.append(kokoro)
-                logger.info("Kokoro TTS provider available")
+                logger.info("Kokoro TTS provider disponible")
         
-        if not os.getenv("DISABLE_ELEVENLABS", "false").lower() == "true":
-            elevenlabs = ElevenLabsTTSProvider()
-            if elevenlabs.is_available():
-                self.tts_providers.append(elevenlabs)
-                logger.info("ElevenLabs TTS provider available")
-        
-        # Lip-sync Providers (in order of preference)
+        # Lip-sync Providers (para uso en estrategias que requieren lip-sync)
         self.lipsync_providers: List[LipsyncProvider] = []
+        if provider_config:
+            if provider_config.wav2lip:
+                self.lipsync_providers.append(provider_config.wav2lip)
+                logger.info("Wav2Lip lip-sync provider disponible")
         
-        # MuseTalk (preferred - faster and more accurate)
-        if not os.getenv("DISABLE_MUSETALK", "false").lower() == "true":
-            musetalk = MuseTalkLipsyncProvider()
-            if musetalk.is_available():
-                self.lipsync_providers.append(musetalk)
-                logger.info("MuseTalk lip-sync provider available")
-        
-        # Sync Labs (commercial HD version - preferred if available)
+        # Sync Labs (mantener compatibilidad)
         if not os.getenv("DISABLE_SYNCLABS", "false").lower() == "true":
             synclabs = SyncLabsLipsyncProvider()
             if synclabs.is_available():
                 self.lipsync_providers.append(synclabs)
-                logger.info("Sync Labs lip-sync provider available")
-        
-        # Wav2Lip (fallback - open-source alternative)
-        if not os.getenv("DISABLE_WAV2LIP", "false").lower() == "true":
-            wav2lip = Wav2LipLipsyncProvider()
-            if wav2lip.is_available():
-                self.lipsync_providers.append(wav2lip)
-                logger.info("Wav2Lip lip-sync provider available")
+                logger.info("Sync Labs lip-sync provider disponible")
         
         # Video Providers (complete solution - TTS + lip-sync)
         self.video_providers: List[VideoProvider] = []
+        if provider_config:
+            if provider_config.heygen:
+                self.video_providers.append(provider_config.heygen)
+                logger.info("HeyGen video provider disponible (Priority 1)")
+            if provider_config.higgsfield:
+                self.video_providers.append(provider_config.higgsfield)
+                logger.info("Higgsfield video provider disponible (Priority 2)")
         
-        # Higgsfield (nuevo provider)
-        if not os.getenv("DISABLE_HIGGSFIELD", "false").lower() == "true":
-            higgsfield = HiggsfieldVideoProvider()
-            if higgsfield.is_available():
-                self.video_providers.append(higgsfield)
-                logger.info("Higgsfield video provider available")
-        
-        if not os.getenv("DISABLE_HEYGEN", "false").lower() == "true":
-            heygen = HeyGenVideoProvider()
-            if heygen.is_available():
-                self.video_providers.append(heygen)
-                logger.info("HeyGen video provider available")
+        # Almacenar referencias directas para acceso rápido
+        self.heygen = provider_config.heygen if provider_config else None
+        self.higgsfield = provider_config.higgsfield if provider_config else None
+        self.wav2lip = provider_config.wav2lip if provider_config else None
+        self.elevenlabs = provider_config.elevenlabs if provider_config else None
         
         logger.info(
-            f"ProviderManager initialized: {len(self.tts_providers)} TTS, "
+            f"ProviderManager inicializado: {len(self.tts_providers)} TTS, "
             f"{len(self.lipsync_providers)} lip-sync, {len(self.video_providers)} video providers"
         )
     
@@ -373,20 +385,28 @@ class ProviderManager:
         audio_mix_inputs = []
         input_idx = 0
         
+        # Mejorar sincronización de audio: usar asetpts para alinear correctamente
         if intro_has_audio:
-            audio_filters.append(f"[0:a] adelay={0}|{0} [a0]")
+            # Audio del intro empieza en t=0, sin delay
+            audio_filters.append(f"[0:a] asetpts=PTS-STARTPTS, adelay=0|0 [a0]")
             audio_mix_inputs.append("[a0]")
             input_idx += 1
         
         if main_has_audio:
-            delay_ms = int(main_start * 1000)
-            audio_filters.append(f"[1:a] adelay={delay_ms}|{delay_ms} [a1]")
+            # Audio del main video debe empezar cuando el main video empieza
+            # main_start puede ser negativo (overlap), ajustar a 0 si es negativo
+            delay_start = max(0, main_start)
+            delay_ms = int(delay_start * 1000)
+            # Usar asetpts para resetear timestamps y luego aplicar delay
+            audio_filters.append(f"[1:a] asetpts=PTS-STARTPTS, adelay={delay_ms}|{delay_ms} [a1]")
             audio_mix_inputs.append("[a1]")
             input_idx += 1
         
         if outro_has_audio:
-            delay_ms = int(outro_start * 1000)
-            audio_filters.append(f"[2:a] adelay={delay_ms}|{delay_ms} [a2]")
+            # Audio del outro debe empezar cuando el outro empieza
+            delay_start = max(0, outro_start)
+            delay_ms = int(delay_start * 1000)
+            audio_filters.append(f"[2:a] asetpts=PTS-STARTPTS, adelay={delay_ms}|{delay_ms} [a2]")
             audio_mix_inputs.append("[a2]")
             input_idx += 1
         
@@ -439,6 +459,371 @@ class ProviderManager:
         logger.info(f"[{video_id}] ✅ Videos compuestos con overlaps")
         return output_path
     
+    def _process_with_heygen(
+        self,
+        intro_video: Path,
+        outro_video: Path,
+        script_frame2: str,
+        script_frame3: str,
+        temp_dir: Path,
+        video_id: str = "",
+    ) -> Path:
+        """
+        Procesa video usando HeyGen (video completo con TTS + lip-sync integrado).
+        
+        Args:
+            intro_video: Path al video intro
+            outro_video: Path al video outro
+            script_frame2: Script para frame 2 (VO intro)
+            script_frame3: Script para frame 3 (diálogo principal)
+            temp_dir: Directorio temporal para archivos intermedios
+            video_id: ID del video para logging
+            
+        Returns:
+            Path al video final compuesto
+            
+        Raises:
+            Exception: Si HeyGen no está disponible o falla
+        """
+        import subprocess
+        import sys
+        
+        if not self.heygen:
+            raise Exception("HeyGen no está disponible")
+        
+        logger.info(f"[{video_id}] Procesando con HeyGen...")
+        
+        # Importar configuración de Papá Noel
+        worker_dir = Path(__file__).parent.parent.parent
+        if str(worker_dir) not in sys.path:
+            sys.path.insert(0, str(worker_dir))
+        from papa_noel_config import (
+            get_papa_noel_avatar_id, 
+            get_papa_noel_voice_id_heygen,
+            get_papa_noel_voice_id_elevenlabs
+        )
+        
+        # Generar video completo con HeyGen
+        main_video_path = temp_dir / "main_video_heygen.mov"
+        main_video = self.heygen.generate_video(
+            script_frame3,
+            avatar_id=get_papa_noel_avatar_id(),
+            output_path=main_video_path,
+            voice_id=get_papa_noel_voice_id_heygen(),  # Usar voice_id específico de HeyGen
+        )
+        
+        # Generar audio para frame 2 (VO para el intro) usando ElevenLabs
+        # Usar voice_id específico de ElevenLabs
+        audio_frame2_path = temp_dir / "audio_frame2.wav"
+        audio_frame2 = self.generate_audio_with_fallback(
+            script_frame2, 
+            audio_frame2_path, 
+            video_id,
+            voice_id=get_papa_noel_voice_id_elevenlabs()  # Usar voice_id específico de ElevenLabs
+        )
+        
+        # Agregar audio al intro
+        intro_with_audio_path = temp_dir / "intro_with_audio.mov"
+        subprocess.run([
+            "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "128k",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
+            "-y", str(intro_with_audio_path)
+        ], check=True, capture_output=True)
+        
+        # Componer con overlaps
+        output_path = temp_dir / "video_final_heygen.mp4"
+        return self._compose_videos_with_overlaps(
+            intro_with_audio_path,
+            main_video,
+            outro_video,
+            output_path,
+            video_id,
+        )
+    
+    def _process_with_higgsfield(
+        self,
+        intro_video: Path,
+        outro_video: Path,
+        script_frame2: str,
+        script_frame3: str,
+        temp_dir: Path,
+        video_id: str = "",
+    ) -> Path:
+        """
+        Procesa video usando Higgsfield (video completo con TTS + lip-sync integrado).
+        
+        Args:
+            intro_video: Path al video intro
+            outro_video: Path al video outro
+            script_frame2: Script para frame 2 (VO intro)
+            script_frame3: Script para frame 3 (diálogo principal)
+            temp_dir: Directorio temporal para archivos intermedios
+            video_id: ID del video para logging
+            
+        Returns:
+            Path al video final compuesto
+            
+        Raises:
+            Exception: Si Higgsfield no está disponible o falla
+        """
+        import subprocess
+        import sys
+        
+        if not self.higgsfield:
+            raise Exception("Higgsfield no está disponible")
+        
+        logger.info(f"[{video_id}] Procesando con Higgsfield...")
+        
+        # Importar configuración de Papá Noel
+        worker_dir = Path(__file__).parent.parent.parent
+        if str(worker_dir) not in sys.path:
+            sys.path.insert(0, str(worker_dir))
+        from papa_noel_config import get_papa_noel_avatar_id
+        
+        # Generar video completo con Higgsfield
+        main_video_path = temp_dir / "main_video_higgsfield.mov"
+        main_video = self.higgsfield.generate_video(
+            script_frame3,
+            avatar_id=get_papa_noel_avatar_id(),
+            output_path=main_video_path,
+        )
+        
+        # Generar audio para frame 2 (VO para el intro)
+        audio_frame2_path = temp_dir / "audio_frame2.wav"
+        audio_frame2 = self.generate_audio_with_fallback(
+            script_frame2, audio_frame2_path, video_id
+        )
+        
+        # Agregar audio al intro
+        intro_with_audio_path = temp_dir / "intro_with_audio.mov"
+        subprocess.run([
+            "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "128k",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
+            "-y", str(intro_with_audio_path)
+        ], check=True, capture_output=True)
+        
+        # Componer con overlaps
+        output_path = temp_dir / "video_final_higgsfield.mp4"
+        return self._compose_videos_with_overlaps(
+            intro_with_audio_path,
+            main_video,
+            outro_video,
+            output_path,
+            video_id,
+        )
+    
+    def _process_with_wav2lip(
+        self,
+        intro_video: Path,
+        base_video: Path,
+        outro_video: Path,
+        script_frame2: str,
+        script_frame3: str,
+        temp_dir: Path,
+        video_id: str = "",
+    ) -> Path:
+        """
+        Procesa video usando Wav2Lip (TTS con ElevenLabs + lip-sync con Wav2Lip).
+        
+        Args:
+            intro_video: Path al video intro
+            base_video: Path al video base (frame 3 - Santa)
+            outro_video: Path al video outro
+            script_frame2: Script para frame 2 (VO intro)
+            script_frame3: Script para frame 3 (diálogo principal)
+            temp_dir: Directorio temporal para archivos intermedios
+            video_id: ID del video para logging
+            
+        Returns:
+            Path al video final compuesto
+            
+        Raises:
+            Exception: Si Wav2Lip o ElevenLabs no están disponibles o fallan
+        """
+        import subprocess
+        
+        if not self.wav2lip:
+            raise Exception("Wav2Lip no está disponible")
+        if not self.elevenlabs:
+            raise Exception("ElevenLabs no está disponible (requerido para TTS)")
+        
+        logger.info(f"[{video_id}] Procesando con Wav2Lip + ElevenLabs...")
+        
+        # Importar configuración de Papá Noel para voice_id de ElevenLabs
+        worker_dir = Path(__file__).parent.parent.parent
+        if str(worker_dir) not in sys.path:
+            sys.path.insert(0, str(worker_dir))
+        from papa_noel_config import get_papa_noel_voice_id_elevenlabs
+        
+        # Generar audio para frame 2 (VO para el intro) usando voice_id específico de ElevenLabs
+        audio_frame2_path = temp_dir / "audio_frame2.wav"
+        audio_frame2 = self.generate_audio_with_fallback(
+            script_frame2, 
+            audio_frame2_path, 
+            video_id,
+            voice_id=get_papa_noel_voice_id_elevenlabs()
+        )
+        
+        # Generar audio para frame 3 usando voice_id específico de ElevenLabs
+        audio_frame3_path = temp_dir / "audio_frame3.wav"
+        audio_frame3 = self.generate_audio_with_fallback(
+            script_frame3, 
+            audio_frame3_path, 
+            video_id,
+            voice_id=get_papa_noel_voice_id_elevenlabs()
+        )
+        
+        # Aplicar lip-sync con Wav2Lip
+        frame3_lipsync_path = temp_dir / "frame3_lipsync_wav2lip.mov"
+        frame3_lipsync = self.wav2lip.apply_lipsync(
+            base_video, audio_frame3, frame3_lipsync_path
+        )
+        
+        # Agregar audio al intro
+        intro_with_audio_path = temp_dir / "intro_with_audio.mov"
+        subprocess.run([
+            "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "128k",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
+            "-y", str(intro_with_audio_path)
+        ], check=True, capture_output=True)
+        
+        # Componer con overlaps
+        output_path = temp_dir / "video_final_wav2lip.mp4"
+        return self._compose_videos_with_overlaps(
+            intro_with_audio_path,
+            frame3_lipsync,
+            outro_video,
+            output_path,
+            video_id,
+        )
+    
+    def _process_with_elevenlabs(
+        self,
+        intro_video: Path,
+        base_video: Path,
+        outro_video: Path,
+        script_frame2: str,
+        script_frame3: str,
+        temp_dir: Path,
+        video_id: str = "",
+    ) -> Path:
+        """
+        Procesa video usando ElevenLabs (TTS + base video sin lip-sync - fallback final).
+        
+        Args:
+            intro_video: Path al video intro
+            base_video: Path al video base (frame 3 - Santa)
+            outro_video: Path al video outro
+            script_frame2: Script para frame 2 (VO intro)
+            script_frame3: Script para frame 3 (diálogo principal)
+            temp_dir: Directorio temporal para archivos intermedios
+            video_id: ID del video para logging
+            
+        Returns:
+            Path al video final compuesto
+            
+        Raises:
+            Exception: Si ElevenLabs no está disponible o falla
+        """
+        import subprocess
+        import json as json_module
+        
+        if not self.elevenlabs:
+            raise Exception("ElevenLabs no está disponible")
+        
+        logger.info(f"[{video_id}] Procesando con ElevenLabs (fallback final - sin lip-sync)...")
+        
+        # Importar configuración de Papá Noel para voice_id de ElevenLabs
+        worker_dir = Path(__file__).parent.parent.parent
+        if str(worker_dir) not in sys.path:
+            sys.path.insert(0, str(worker_dir))
+        from papa_noel_config import get_papa_noel_voice_id_elevenlabs
+        
+        # Generar audio para frame 2 (VO para el intro) usando voice_id específico de ElevenLabs
+        audio_frame2_path = temp_dir / "audio_frame2.wav"
+        audio_frame2 = self.generate_audio_with_fallback(
+            script_frame2, 
+            audio_frame2_path, 
+            video_id,
+            voice_id=get_papa_noel_voice_id_elevenlabs()
+        )
+        
+        # Generar audio para frame 3 usando voice_id específico de ElevenLabs
+        audio_frame3_path = temp_dir / "audio_frame3.wav"
+        audio_frame3 = self.generate_audio_with_fallback(
+            script_frame3, 
+            audio_frame3_path, 
+            video_id,
+            voice_id=get_papa_noel_voice_id_elevenlabs()
+        )
+        
+        # Agregar audio al intro
+        intro_with_audio_path = temp_dir / "intro_with_audio.mov"
+        subprocess.run([
+            "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "128k",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
+            "-pix_fmt", "yuv420p",
+            "-y", str(intro_with_audio_path)
+        ], check=True, capture_output=True)
+        
+        # Agregar audio al video base (sin lip-sync)
+        frame3_with_audio_path = temp_dir / "frame3_with_audio.mov"
+        
+        # Obtener duraciones para sincronizar
+        audio_duration_result = subprocess.run([
+            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            "-of", "json", str(audio_frame3)
+        ], capture_output=True, text=True, check=True)
+        audio_duration = float(json_module.loads(audio_duration_result.stdout)["format"]["duration"])
+        
+        video_duration_result = subprocess.run([
+            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            "-of", "json", str(base_video)
+        ], capture_output=True, text=True, check=True)
+        video_duration = float(json_module.loads(video_duration_result.stdout)["format"]["duration"])
+        
+        final_duration = min(audio_duration, video_duration)
+        
+        subprocess.run([
+            "ffmpeg",
+            "-i", str(base_video),
+            "-i", str(audio_frame3),
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "128k",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
+            "-pix_fmt", "yuv420p",
+            "-t", str(final_duration),
+            "-y", str(frame3_with_audio_path)
+        ], check=True, capture_output=True)
+        
+        # Componer con overlaps
+        output_path = temp_dir / "video_final_elevenlabs.mp4"
+        return self._compose_videos_with_overlaps(
+            intro_with_audio_path,
+            frame3_with_audio_path,
+            outro_video,
+            output_path,
+            video_id,
+        )
+    
     def process_video_with_fallback(
         self,
         intro_video: Path,
@@ -450,16 +835,22 @@ class ProviderManager:
         video_id: str = "",
     ) -> Path:
         """
-        Process complete video with TTS + lip-sync, falling back to complete video providers if needed.
+        Process complete video con fallback automático en orden de prioridad.
+        
+        Orden de prioridad:
+        1. HeyGen (Video completo - TTS + lip-sync integrado)
+        2. Higgsfield (Video completo - TTS + lip-sync integrado)
+        3. Wav2Lip (TTS con ElevenLabs + lip-sync con Wav2Lip)
+        4. ElevenLabs (TTS + base video sin lip-sync - fallback final)
         
         Este método implementa la composición con overlaps según las especificaciones:
         - Intro: Frames_1_2_to_3.mov con audio agregado
-        - Main: Video generado por HeyGen o lip-sync (con overlap al final del intro)
+        - Main: Video generado por provider seleccionado (con overlap al final del intro)
         - Outro: Frame_4_NocheMagica.mov (con overlap al final del main)
         
         Args:
             intro_video: Path to intro video (Frames_1_2_to_3.mov)
-            base_video: Path to base video (frame 3 - Santa) - solo usado en Strategy 1
+            base_video: Path to base video (frame 3 - Santa) - usado en Wav2Lip, ElevenLabs
             outro_video: Path to outro video (Frame_4_NocheMagica.mov)
             script_frame2: Script for frame 2 audio (VO de Papá Noel para el intro)
             script_frame3: Script for frame 3 (main dialogue)
@@ -468,144 +859,90 @@ class ProviderManager:
             
         Returns:
             Path to the final composed video with overlaps
+            
+        Raises:
+            Exception: Si todos los providers fallan
         """
-        from pathlib import Path
-        import subprocess
-        
         temp_dir = output_path.parent / f"temp_{video_id}"
         temp_dir.mkdir(parents=True, exist_ok=True)
         
-        try:
-            # Strategy 1: Try TTS + lip-sync approach
+        last_error = None
+        strategies_tried = []
+        
+        # Estrategia 1: HeyGen (Video completo)
+        if self.heygen:
             try:
-                logger.info(f"[{video_id}] Attempting Strategy 1: TTS + lip-sync")
-                
-                # Generate audio for frame 2 (VO para el intro)
-                audio_frame2_path = temp_dir / "audio_frame2.wav"
-                audio_frame2 = self.generate_audio_with_fallback(
-                    script_frame2, audio_frame2_path, video_id
+                logger.info(f"[{video_id}] Intentando con HeyGen (Priority 1)...")
+                result = self._process_with_heygen(
+                    intro_video, outro_video, script_frame2, script_frame3,
+                    temp_dir, video_id
                 )
-                
-                # Generate audio for frame 3
-                audio_frame3_path = temp_dir / "audio_frame3.wav"
-                audio_frame3 = self.generate_audio_with_fallback(
-                    script_frame3, audio_frame3_path, video_id
-                )
-                
-                # Apply lip-sync to frame 3
-                frame3_lipsync_path = temp_dir / "frame3_lipsync.mov"
-                frame3_lipsync = self.apply_lipsync_with_fallback(
-                    base_video, audio_frame3, frame3_lipsync_path, video_id
-                )
-                
-                # Add audio to intro (mantener formato .mov para transparencia)
-                intro_with_audio_path = temp_dir / "intro_with_audio.mov"
-                subprocess.run([
-                    "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
-                    "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest",
-                    "-y", str(intro_with_audio_path)
-                ], check=True, capture_output=True)
-                
-                # Componer con overlaps
-                return self._compose_videos_with_overlaps(
-                    intro_with_audio_path,
-                    frame3_lipsync,
-                    outro_video,
-                    output_path,
-                    video_id,
-                )
-                
+                # Copiar resultado al output_path final
+                import shutil
+                shutil.copy2(result, output_path)
+                logger.info(f"[{video_id}] ✅ Video generado exitosamente con HeyGen")
+                return output_path
             except Exception as e:
-                logger.warning(f"[{video_id}] Strategy 1 failed: {str(e)}")
-                logger.info(f"[{video_id}] Falling back to Strategy 2: Complete video generation (HeyGen)")
-                
-                # Strategy 2: Use complete video provider (HeyGen)
-                try:
-                    # Generate full script (solo frame 3, el frame 2 se agrega al intro)
-                    # Nota: HeyGen generará solo el video principal de Papá Noel hablando
-                    
-                    # Generate complete video with HeyGen (solo el diálogo principal)
-                    heygen_output = temp_dir / "heygen_video.mov"
-                    heygen_video = self.generate_video_with_fallback(
-                        script_frame3,  # Solo el script principal
-                        avatar_id="santa",  # Default avatar
-                        output_path=heygen_output,
-                        video_id=video_id,
-                    )
-                    
-                    # Agregar audio al intro (VO de Papá Noel)
-                    audio_frame2_path = temp_dir / "audio_frame2.wav"
-                    audio_frame2 = self.generate_audio_with_fallback(
-                        script_frame2, audio_frame2_path, video_id
-                    )
-                    
-                    intro_with_audio_path = temp_dir / "intro_with_audio.mov"
-                    subprocess.run([
-                        "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
-                        "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest",
-                        "-y", str(intro_with_audio_path)
-                    ], check=True, capture_output=True)
-                    
-                    # Componer con overlaps
-                    return self._compose_videos_with_overlaps(
-                        intro_with_audio_path,
-                        heygen_video,
-                        outro_video,
-                        output_path,
-                        video_id,
-                    )
-                    
-                except Exception as e2:
-                    logger.warning(f"[{video_id}] Strategy 2 failed: {str(e2)}")
-                    logger.info(f"[{video_id}] Falling back to Strategy 3: TTS + base video (no lip-sync)")
-                    
-                    # Strategy 3: TTS + base video (sin lip-sync) - fallback cuando todo falla
-                    # Esta es la opción más básica pero funcional: solo agregamos audio al video base
-                    
-                    # Generate audio for frame 2 (VO para el intro)
-                    audio_frame2_path = temp_dir / "audio_frame2.wav"
-                    audio_frame2 = self.generate_audio_with_fallback(
-                        script_frame2, audio_frame2_path, video_id
-                    )
-                    
-                    # Generate audio for frame 3
-                    audio_frame3_path = temp_dir / "audio_frame3.wav"
-                    audio_frame3 = self.generate_audio_with_fallback(
-                        script_frame3, audio_frame3_path, video_id
-                    )
-                    
-                    # Add audio to intro
-                    intro_with_audio_path = temp_dir / "intro_with_audio.mov"
-                    subprocess.run([
-                        "ffmpeg", "-i", str(intro_video), "-i", str(audio_frame2),
-                        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                        "-c:a", "aac", "-b:a", "128k", "-shortest",
-                        "-pix_fmt", "yuv420p",
-                        "-y", str(intro_with_audio_path)
-                    ], check=True, capture_output=True)
-                    
-                    # Add audio to frame3 base video (sin lip-sync, solo audio sobre video)
-                    frame3_with_audio_path = temp_dir / "frame3_with_audio.mov"
-                    subprocess.run([
-                        "ffmpeg", "-i", str(base_video), "-i", str(audio_frame3),
-                        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                        "-c:a", "aac", "-b:a", "128k", "-shortest",
-                        "-pix_fmt", "yuv420p",
-                        "-y", str(frame3_with_audio_path)
-                    ], check=True, capture_output=True)
-                    
-                    # Componer con overlaps
-                    return self._compose_videos_with_overlaps(
-                        intro_with_audio_path,
-                        frame3_with_audio_path,
-                        outro_video,
-                        output_path,
-                        video_id,
-                    )
-                
-        finally:
-            # Cleanup temp directory (optional - comment out for debugging)
-            # import shutil
-            # shutil.rmtree(temp_dir, ignore_errors=True)
-            pass
+                last_error = e
+                strategies_tried.append("HeyGen")
+                logger.warning(f"[{video_id}] HeyGen falló: {str(e)}")
+        
+        # Estrategia 2: Higgsfield (Video completo)
+        if self.higgsfield:
+            try:
+                logger.info(f"[{video_id}] Intentando con Higgsfield (Priority 2)...")
+                result = self._process_with_higgsfield(
+                    intro_video, outro_video, script_frame2, script_frame3,
+                    temp_dir, video_id
+                )
+                import shutil
+                shutil.copy2(result, output_path)
+                logger.info(f"[{video_id}] ✅ Video generado exitosamente con Higgsfield")
+                return output_path
+            except Exception as e:
+                last_error = e
+                strategies_tried.append("Higgsfield")
+                logger.warning(f"[{video_id}] Higgsfield falló: {str(e)}")
+        
+        # Estrategia 3: Wav2Lip (TTS + lip-sync)
+        if self.wav2lip and self.elevenlabs:
+            try:
+                logger.info(f"[{video_id}] Intentando con Wav2Lip + ElevenLabs (Priority 3)...")
+                result = self._process_with_wav2lip(
+                    intro_video, base_video, outro_video, script_frame2, script_frame3,
+                    temp_dir, video_id
+                )
+                import shutil
+                shutil.copy2(result, output_path)
+                logger.info(f"[{video_id}] ✅ Video generado exitosamente con Wav2Lip")
+                return output_path
+            except Exception as e:
+                last_error = e
+                strategies_tried.append("Wav2Lip")
+                logger.warning(f"[{video_id}] Wav2Lip falló: {str(e)}")
+        
+        # Estrategia 4: ElevenLabs (TTS + base video - fallback final)
+        if self.elevenlabs:
+            try:
+                logger.info(f"[{video_id}] Intentando con ElevenLabs (Priority 4 - fallback final)...")
+                result = self._process_with_elevenlabs(
+                    intro_video, base_video, outro_video, script_frame2, script_frame3,
+                    temp_dir, video_id
+                )
+                import shutil
+                shutil.copy2(result, output_path)
+                logger.info(f"[{video_id}] ✅ Video generado exitosamente con ElevenLabs (sin lip-sync)")
+                return output_path
+            except Exception as e:
+                last_error = e
+                strategies_tried.append("ElevenLabs")
+                logger.error(f"[{video_id}] ElevenLabs falló: {str(e)}")
+        
+        # Si llegamos aquí, todos los providers fallaron
+        error_msg = (
+            f"Todos los providers fallaron. Estrategias intentadas: {', '.join(strategies_tried) if strategies_tried else 'ninguna'}.\n"
+            f"Último error: {str(last_error) if last_error else 'No hay providers disponibles'}"
+        )
+        logger.error(f"[{video_id}] ❌ {error_msg}")
+        raise Exception(error_msg)
 

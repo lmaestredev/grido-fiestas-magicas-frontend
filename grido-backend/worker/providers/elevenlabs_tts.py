@@ -22,8 +22,13 @@ class ElevenLabsTTSProvider(TTSProvider):
             voice_id: Voice ID to use (defaults to PAPA_NOEL_VOICE_ID or "21m00Tcm4TlvDq8ikWAM")
         """
         self.api_key = api_key or os.getenv("ELEVENLABS_API_KEY")
-        # Usar voz de Papá Noel configurada, o fallback a default
-        self.voice_id = voice_id or os.getenv("PAPA_NOEL_VOICE_ID", "bkVwoLpm00fYfz45ZQAb")
+        # Usar voz de Papá Noel configurada para ElevenLabs
+        # Prioridad: parámetro > PAPA_NOEL_VOICE_ID_ELEVENLABS > PAPA_NOEL_VOICE_ID (compatibilidad) > default
+        self.voice_id = (
+            voice_id or 
+            os.getenv("PAPA_NOEL_VOICE_ID_ELEVENLABS") or 
+            os.getenv("PAPA_NOEL_VOICE_ID", "bkVwoLpm00fYfz45ZQAb")  # Fallback para compatibilidad
+        )
         self.api_url = "https://api.elevenlabs.io/v1/text-to-speech"
     
     def is_available(self) -> bool:
@@ -98,7 +103,15 @@ class ElevenLabsTTSProvider(TTSProvider):
             return output_path
             
         except requests.exceptions.RequestException as e:
-            raise Exception(f"ElevenLabs API request failed: {str(e)}")
+            error_msg = f"ElevenLabs API request failed: {str(e)}"
+            # Si es un 404, el voice_id probablemente no existe
+            if hasattr(e, 'response') and e.response is not None:
+                if e.response.status_code == 404:
+                    error_msg += f"\n   El voice_id '{self.voice_id}' no existe o no es válido."
+                    error_msg += f"\n   Ejecuta 'python tests/list_elevenlabs_voices.py' para ver voices disponibles."
+                elif e.response.status_code == 401:
+                    error_msg += f"\n   API key inválida. Verifica ELEVENLABS_API_KEY en .env"
+            raise Exception(error_msg)
         except Exception as e:
             raise Exception(f"ElevenLabs TTS generation failed: {str(e)}")
 

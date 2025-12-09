@@ -13,8 +13,14 @@ import sys
 from pathlib import Path
 import tempfile
 
-# Agregar el directorio del worker al path
-sys.path.insert(0, str(Path(__file__).parent))
+# Agregar el directorio del worker al path (solución robusta)
+worker_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(worker_dir))
+
+# Verificar que el path es correcto
+if not (worker_dir / "providers").exists():
+    print(f"❌ Error: No se encontró el directorio providers en {worker_dir}")
+    sys.exit(1)
 
 # Cargar variables de entorno desde .env
 try:
@@ -88,9 +94,49 @@ def test_flujo_sin_redis():
         print("   - HEYGEN_API_KEY")
         return False
     
-    # Storage
+    # Storage - Usar el configurado, con fallback a local si Firebase no está disponible
     storage_type = os.getenv("STORAGE_TYPE", "local").lower()
+    original_storage = os.getenv("STORAGE_TYPE")
+    
+    # Verificar si Firebase está configurado y disponible
+    if storage_type == "firebase":
+        # Verificar si firebase-admin está instalado
+        try:
+            import firebase_admin
+        except ImportError:
+            print("⚠️  firebase-admin no está instalado")
+            print("   💡 Instala con: pip install firebase-admin")
+            print("   💡 Usando storage local como fallback")
+            storage_type = "local"
+            os.environ["STORAGE_TYPE"] = "local"
+        else:
+            # Verificar credenciales de Firebase
+            cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+            cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+            firebase_creds_file = Path("firebase-credentials.json")
+            
+            if not cred_path and not cred_json:
+                print("   ⚠️  No se encontraron credenciales de Firebase")
+                print("   💡 Configura FIREBASE_CREDENTIALS_PATH o FIREBASE_CREDENTIALS_JSON en .env")
+                print("   💡 Usando storage local como fallback")
+                storage_type = "local"
+                os.environ["STORAGE_TYPE"] = "local"
+            else:
+                if cred_path and Path(cred_path).exists():
+                    print(f"   ✅ Credenciales encontradas en: {cred_path}")
+                elif cred_json:
+                    print("   ✅ Credenciales configuradas via FIREBASE_CREDENTIALS_JSON")
+                else:
+                    print(f"   ⚠️  Archivo de credenciales no encontrado: {cred_path}")
+                    print("   💡 Usando storage local como fallback")
+                    storage_type = "local"
+                    os.environ["STORAGE_TYPE"] = "local"
+    
     print(f"📦 Storage: {storage_type}")
+    if storage_type == "firebase":
+        bucket = os.getenv("FIREBASE_STORAGE_BUCKET")
+        if bucket:
+            print(f"   🪣 Bucket: {bucket}")
     print()
     
     # Templates
@@ -148,10 +194,35 @@ Y recordá, la magia está en compartir... ¡y en un rico helado de Grido!
         
         # Subir a storage
         print(f"📤 Subiendo a {storage_type}...")
-        from storage import upload_video
-        video_url = upload_video(video_id, output_path)
-        print(f"   ✅ Video subido")
-        print(f"   🔗 URL: {video_url}")
+        try:
+            from storage import upload_video
+            video_url = upload_video(video_id, output_path)
+            print(f"   ✅ Video subido exitosamente")
+            print(f"   🔗 URL: {video_url}")
+        except Exception as storage_error:
+            print(f"   ⚠️  Error subiendo a {storage_type}: {str(storage_error)}")
+            # Si falla Firebase, intentar con local como fallback
+            if storage_type == "firebase":
+                print("   💡 Intentando con storage local como fallback...")
+                original_storage_env = os.getenv("STORAGE_TYPE")
+                os.environ["STORAGE_TYPE"] = "local"
+                try:
+                    from storage import upload_video
+                    video_url = upload_video(video_id, output_path)
+                    print(f"   ✅ Video guardado localmente")
+                    print(f"   🔗 URL: {video_url}")
+                except Exception as local_error:
+                    print(f"   ❌ Error también con storage local: {str(local_error)}")
+                    # Guardar URL local como fallback
+                    video_url = f"file://{output_path.absolute()}"
+                    print(f"   📁 Archivo local: {output_path.absolute()}")
+                finally:
+                    if original_storage_env:
+                        os.environ["STORAGE_TYPE"] = original_storage_env
+            else:
+                # Si ya era local y falló, solo mostrar el path
+                video_url = f"file://{output_path.absolute()}"
+                print(f"   📁 Archivo local: {output_path.absolute()}")
         print()
         
         print("=" * 60)

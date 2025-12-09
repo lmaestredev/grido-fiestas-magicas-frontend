@@ -27,8 +27,14 @@ import time
 import argparse
 from pathlib import Path
 
-# Agregar el directorio del worker al path
-sys.path.insert(0, str(Path(__file__).parent))
+# Agregar el directorio del worker al path (solución robusta)
+worker_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(worker_dir))
+
+# Verificar que el path es correcto
+if not (worker_dir / "providers").exists():
+    print(f"❌ Error: No se encontró el directorio providers en {worker_dir}")
+    sys.exit(1)
 
 # Cargar variables de entorno
 try:

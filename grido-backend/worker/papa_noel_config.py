@@ -14,9 +14,17 @@ from typing import Dict, Any, Optional
 # CONFIGURACIÓN DE VOZ
 # ============================================================================
 
-# Voice ID de Papá Noel (ElevenLabs)
-# Puedes cambiar esto en el .env con PAPA_NOEL_VOICE_ID
-PAPA_NOEL_VOICE_ID = os.getenv("PAPA_NOEL_VOICE_ID", "bkVwoLpm00fYfz45ZQAb")  # Voice ID de Papá Noel
+# Voice ID de Papá Noel para ElevenLabs
+# Puedes cambiar esto en el .env con PAPA_NOEL_VOICE_ID_ELEVENLABS
+PAPA_NOEL_VOICE_ID_ELEVENLABS = os.getenv("PAPA_NOEL_VOICE_ID_ELEVENLABS", "bkVwoLpm00fYfz45ZQAb")
+
+# Voice ID de Papá Noel para HeyGen
+# Puedes cambiar esto en el .env con PAPA_NOEL_VOICE_ID_HEYGEN
+PAPA_NOEL_VOICE_ID_HEYGEN = os.getenv("PAPA_NOEL_VOICE_ID_HEYGEN", "")
+
+# Voice ID genérico (compatibilidad hacia atrás - deprecated)
+# Se usa como fallback si las variables específicas no están configuradas
+PAPA_NOEL_VOICE_ID = os.getenv("PAPA_NOEL_VOICE_ID", "")
 
 # Avatar ID para HeyGen (si se usa)
 PAPA_NOEL_AVATAR_ID = os.getenv("PAPA_NOEL_AVATAR_ID", "default")
@@ -117,8 +125,33 @@ PAPA_NOEL_PHRASES = {
 # ============================================================================
 
 def get_papa_noel_voice_id() -> str:
-    """Obtiene el Voice ID de Papá Noel."""
-    return PAPA_NOEL_VOICE_ID
+    """
+    Obtiene el Voice ID de Papá Noel para ElevenLabs (compatibilidad hacia atrás).
+    
+    Returns:
+        Voice ID para ElevenLabs
+    """
+    return PAPA_NOEL_VOICE_ID_ELEVENLABS or PAPA_NOEL_VOICE_ID or "bkVwoLpm00fYfz45ZQAb"
+
+
+def get_papa_noel_voice_id_heygen() -> str:
+    """
+    Obtiene el Voice ID de Papá Noel para HeyGen.
+    
+    Returns:
+        Voice ID para HeyGen, o cadena vacía si no está configurado
+    """
+    return PAPA_NOEL_VOICE_ID_HEYGEN or PAPA_NOEL_VOICE_ID or ""
+
+
+def get_papa_noel_voice_id_elevenlabs() -> str:
+    """
+    Obtiene el Voice ID de Papá Noel para ElevenLabs.
+    
+    Returns:
+        Voice ID para ElevenLabs
+    """
+    return PAPA_NOEL_VOICE_ID_ELEVENLABS or PAPA_NOEL_VOICE_ID or "bkVwoLpm00fYfz45ZQAb"
 
 
 def get_papa_noel_avatar_id() -> str:

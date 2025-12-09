@@ -55,26 +55,29 @@ def check_assets() -> Dict[str, Any]:
 
 
 def check_providers() -> Dict[str, Any]:
-    """Verifica que haya providers disponibles."""
+    """Verifica que haya providers disponibles usando validación centralizada."""
     try:
-        from providers.manager import ProviderManager
-        manager = ProviderManager()
+        from config.providers_config import validate_providers
+        provider_config = validate_providers()
         
         providers_status = {
-            "tts": len(manager.tts_providers),
-            "lipsync": len(manager.lipsync_providers),
-            "video": len(manager.video_providers),
+            "heygen": provider_config.heygen is not None,
+            "higgsfield": provider_config.higgsfield is not None,
+            "wav2lip": provider_config.wav2lip is not None,
+            "elevenlabs": provider_config.elevenlabs is not None,
+            "available_count": len(provider_config.available_providers),
+            "order": provider_config.provider_order,
         }
         
-        if providers_status["tts"] == 0:
+        if providers_status["available_count"] == 0:
             return {
                 "status": "unhealthy",
-                "message": "No hay providers de TTS disponibles"
+                "message": "No hay providers de IA disponibles"
             }
         
         return {
             "status": "healthy",
-            "message": "Providers disponibles",
+            "message": f"{providers_status['available_count']} provider(s) disponible(s)",
             "providers": providers_status
         }
     except Exception as e:

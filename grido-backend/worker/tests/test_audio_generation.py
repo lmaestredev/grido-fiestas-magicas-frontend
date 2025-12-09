@@ -13,8 +13,16 @@ import sys
 from pathlib import Path
 import tempfile
 
-# Agregar el directorio del worker al path
-sys.path.insert(0, str(Path(__file__).parent))
+# Agregar el directorio del worker al path (solución robusta)
+worker_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(worker_dir))
+
+# Verificar que el path es correcto
+if not (worker_dir / "providers").exists():
+    print(f"❌ Error: No se encontró el directorio providers en {worker_dir}")
+    print(f"   Path actual del script: {Path(__file__).absolute()}")
+    print(f"   Directorio worker esperado: {worker_dir.absolute()}")
+    sys.exit(1)
 
 # Cargar variables de entorno desde .env
 try:
@@ -74,6 +82,8 @@ Y recordá, la magia está en compartir... ¡y en un rico helado de Grido!
     
     # Verificar providers disponibles
     from providers.manager import ProviderManager
+    from papa_noel_config import get_papa_noel_voice_id
+    
     manager = ProviderManager()
     
     if len(manager.tts_providers) == 0:
@@ -90,6 +100,11 @@ Y recordá, la magia está en compartir... ¡y en un rico helado de Grido!
             print(f"     Voz: {provider.voice_id}")
     print()
     
+    # Obtener voice_id de Papá Noel
+    voice_id = get_papa_noel_voice_id()
+    print(f"🎤 Usando voice_id de Papá Noel: {voice_id}")
+    print()
+    
     # Crear directorio temporal
     temp_dir = Path(tempfile.mkdtemp())
     
@@ -100,7 +115,8 @@ Y recordá, la magia está en compartir... ¡y en un rico helado de Grido!
         manager.generate_audio_with_fallback(
             script_frame2,
             audio_frame2,
-            video_id="test_audio"
+            video_id="test_audio",
+            voice_id=voice_id  # Pasar voice_id explícitamente
         )
         
         if audio_frame2.exists():
@@ -119,7 +135,8 @@ Y recordá, la magia está en compartir... ¡y en un rico helado de Grido!
         manager.generate_audio_with_fallback(
             script_frame3,
             audio_frame3,
-            video_id="test_audio"
+            video_id="test_audio",
+            voice_id=voice_id  # Pasar voice_id explícitamente
         )
         
         if audio_frame3.exists():

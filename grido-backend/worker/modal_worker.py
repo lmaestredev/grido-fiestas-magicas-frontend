@@ -37,8 +37,6 @@ image = (
     .copy_local_dir("providers", "/root/providers")
     # Instalar Kokoro TTS (ajustar según tu implementación)
     # .run_commands("pip install git+https://github.com/hexgrad/kokoro.git")
-    # Instalar MuseTalk
-    # .run_commands("pip install git+https://github.com/TMElyralab/MuseTalk.git")
 )
 
 # Crear stub de Modal

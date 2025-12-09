@@ -38,6 +38,9 @@ logger = logging.getLogger(__name__)
 shutdown_requested = False
 current_job_id = None
 
+# Configuración de providers validada al inicio
+_provider_config = None
+
 # Configuración
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 S3_BUCKET = os.getenv("S3_BUCKET", "grido-papa-noel-videos")
@@ -378,8 +381,19 @@ def _process_video_internal(video_id: str, data: Dict[str, Any]):
         # Import ProviderManager
         from providers.manager import ProviderManager
         
-        # Initialize provider manager
-        manager = ProviderManager()
+        # Usar configuración validada (ya validada al inicio del worker)
+        # Si no está disponible, validar ahora (compatibilidad hacia atrás)
+        global _provider_config
+        if _provider_config is None:
+            try:
+                from config.providers_config import validate_providers
+                _provider_config = validate_providers()
+            except Exception as e:
+                log(video_id, f"Error validando providers: {str(e)}")
+                raise
+        
+        # Initialize provider manager con configuración validada
+        manager = ProviderManager(provider_config=_provider_config)
         
         # Prepare script for frame 3 usando configuración de Papá Noel
         script_frame3 = generate_frame3_script(data)
@@ -396,7 +410,9 @@ def _process_video_internal(video_id: str, data: Dict[str, Any]):
         tts_start = time.time()
         
         # Use ProviderManager to process video with fallback
-        # Usar configuración de Papá Noel para voice_id y avatar_id
+        # Cada provider maneja su propio voice_id automáticamente:
+        # - HeyGen usa PAPA_NOEL_VOICE_ID_HEYGEN
+        # - ElevenLabs usa PAPA_NOEL_VOICE_ID_ELEVENLABS
         manager.process_video_with_fallback(
             intro_video=intro_base,
             base_video=frame3_base,
@@ -405,8 +421,6 @@ def _process_video_internal(video_id: str, data: Dict[str, Any]):
             script_frame3=script_frame3,
             output_path=final_video,
             video_id=video_id,
-            voice_id=get_papa_noel_voice_id(),
-            avatar_id=get_papa_noel_avatar_id(),
         )
         
         tts_time = time.time() - tts_start
@@ -490,7 +504,22 @@ def main():
     """Loop principal del worker con graceful shutdown."""
     global shutdown_requested
     
-    log("WORKER", "Worker iniciado, esperando trabajos...")
+    log("WORKER", "Worker iniciado, validando providers...")
+    
+    # Validar providers al inicio (fail-fast)
+    try:
+        from config.providers_config import validate_providers
+        provider_config = validate_providers()
+        log("WORKER", f"✅ Providers validados: {len(provider_config.available_providers)} disponible(s)")
+        log("WORKER", f"   Orden: {' → '.join(provider_config.provider_order)}")
+        
+        # Almacenar configuración para uso en process_video
+        global _provider_config
+        _provider_config = provider_config
+    except Exception as e:
+        logger.error(f"❌ ERROR CRÍTICO: Validación de providers falló: {str(e)}")
+        logger.error("   El worker no puede continuar sin al menos un provider disponible.")
+        sys.exit(1)
     
     # Health check inicial
     try:
@@ -500,6 +529,8 @@ def main():
             logger.warning(f"Health check inicial falló: {health}")
     except Exception as e:
         logger.warning(f"Error en health check inicial: {e}")
+    
+    log("WORKER", "Worker listo, esperando trabajos...")
     
     while not shutdown_requested:
         try:

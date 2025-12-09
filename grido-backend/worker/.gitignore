@@ -22,6 +22,8 @@ storage/*.mp3
 /tmp/
 *.tmp
 *.log
+cache/
+temp/
 
 # Firebase credentials
 firebase-credentials.json

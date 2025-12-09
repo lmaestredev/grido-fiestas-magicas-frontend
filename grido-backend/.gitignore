@@ -25,6 +25,11 @@ storage/
 *.mp4
 *.mov
 
+# Cache and temporary directories
+cache/
+temp/
+**/temp/
+
 # IDE
 .vscode/
 .idea/
