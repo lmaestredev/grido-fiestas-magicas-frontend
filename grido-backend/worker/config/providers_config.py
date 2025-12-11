@@ -11,20 +11,18 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-# Cargar variables de entorno
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 
-# Agregar el directorio del worker al path
 worker_dir = Path(__file__).parent.parent
 if str(worker_dir) not in sys.path:
     sys.path.insert(0, str(worker_dir))
 
-# Importar providers
 from providers.heygen_video import HeyGenVideoProvider
+from providers.did_video import DIDVideoProvider
 from providers.higgsfield_video import HiggsfieldVideoProvider
 from providers.wav2lip_lipsync import Wav2LipLipsyncProvider
 from providers.elevenlabs_tts import ElevenLabsTTSProvider
@@ -37,6 +35,7 @@ class ProviderConfig:
     
     def __init__(self):
         self.heygen: Optional[HeyGenVideoProvider] = None
+        self.did: Optional[DIDVideoProvider] = None
         self.higgsfield: Optional[HiggsfieldVideoProvider] = None
         self.wav2lip: Optional[Wav2LipLipsyncProvider] = None
         self.elevenlabs: Optional[ElevenLabsTTSProvider] = None
@@ -69,6 +68,25 @@ def validate_heygen() -> Optional[HeyGenVideoProvider]:
             return None
     except Exception as e:
         logger.warning(f"⚠️  Error validando HeyGen: {str(e)}")
+        return None
+
+
+def validate_did() -> Optional[DIDVideoProvider]:
+    """Valida y retorna D-ID provider si está disponible."""
+    if os.getenv("DISABLE_DID", "false").lower() == "true":
+        logger.debug("D-ID está deshabilitado (DISABLE_DID=true)")
+        return None
+    
+    try:
+        provider = DIDVideoProvider()
+        if provider.is_available():
+            logger.info("✅ D-ID disponible y validado")
+            return provider
+        else:
+            logger.warning("⚠️  D-ID no disponible (falta DID_API_KEY o DID_API_KEY_PLAIN)")
+            return None
+    except Exception as e:
+        logger.warning(f"⚠️  Error validando D-ID: {str(e)}")
         return None
 
 
@@ -135,9 +153,10 @@ def validate_providers() -> ProviderConfig:
     
     Orden de prioridad:
     1. HeyGen (Video completo)
-    2. Higgsfield (Video completo)
-    3. Wav2Lip (TTS + lip-sync)
-    4. ElevenLabs (TTS + base video)
+    2. D-ID (Video completo)
+    3. Higgsfield (Video completo)
+    4. Wav2Lip (TTS + lip-sync)
+    5. ElevenLabs (TTS + base video)
     
     Returns:
         ProviderConfig con providers validados y ordenados
@@ -154,6 +173,11 @@ def validate_providers() -> ProviderConfig:
     if config.heygen:
         config.available_providers.append("heygen")
         config.provider_order.append("heygen")
+    
+    config.did = validate_did()
+    if config.did:
+        config.available_providers.append("did")
+        config.provider_order.append("did")
     
     config.higgsfield = validate_higgsfield()
     if config.higgsfield:
@@ -176,6 +200,7 @@ def validate_providers() -> ProviderConfig:
             "❌ ERROR CRÍTICO: No hay ningún provider de IA disponible.\n"
             "   Configura al menos uno de los siguientes:\n"
             "   - HEYGEN_API_KEY (para HeyGen)\n"
+            "   - DID_API_KEY o DID_API_KEY_PLAIN (para D-ID)\n"
             "   - HIGGSFIELD_API_KEY_ID y HIGGSFIELD_API_KEY_SECRET (para Higgsfield)\n"
             "   - WAV2LIP_MODEL_PATH y WAV2LIP_REPO_PATH (para Wav2Lip)\n"
             "   - ELEVENLABS_API_KEY (para ElevenLabs)\n"

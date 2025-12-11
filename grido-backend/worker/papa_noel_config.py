@@ -159,6 +159,49 @@ def get_papa_noel_avatar_id() -> str:
     return PAPA_NOEL_AVATAR_ID
 
 
+def get_papa_noel_image_path() -> Path:
+    """
+    Obtiene la ruta de la imagen de Papá Noel para D-ID.
+    
+    Busca en varios lugares posibles:
+    1. PAPA_NOEL_IMAGE_PATH (variable de entorno)
+    2. assets/Grido_PapaNoel.png (relativo al worker)
+    3. ../assets/Grido_PapaNoel.png (relativo al worker)
+    4. grido-backend/assets/Grido_PapaNoel.png
+    5. grido-backend/worker/assets/Grido_PapaNoel.png
+    
+    Returns:
+        Path a la imagen de Papá Noel
+        
+    Raises:
+        Exception: Si no se encuentra la imagen
+    """
+    from pathlib import Path
+    
+    possible_paths = [
+        Path(os.getenv("PAPA_NOEL_IMAGE_PATH", "")),
+        Path("assets/Grido_PapaNoel.png"),
+        Path("../assets/Grido_PapaNoel.png"),
+        Path("grido-backend/assets/Grido_PapaNoel.png"),
+        Path("grido-backend/worker/assets/Grido_PapaNoel.png"),
+    ]
+    
+    worker_dir = Path(__file__).parent
+    possible_paths.extend([
+        worker_dir / "assets" / "Grido_PapaNoel.png",
+        worker_dir.parent / "assets" / "Grido_PapaNoel.png",
+    ])
+    
+    for path in possible_paths:
+        if path and path.exists():
+            return path
+    
+    raise Exception(
+        f"Imagen de Papá Noel no encontrada. Buscado en: {possible_paths}. "
+        "Configura PAPA_NOEL_IMAGE_PATH en .env o coloca la imagen en assets/Grido_PapaNoel.png"
+    )
+
+
 def generate_frame2_script() -> str:
     """Genera el script para el Frame 2 (introducción)."""
     return FRAME2_PHRASE

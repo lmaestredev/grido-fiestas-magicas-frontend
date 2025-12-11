@@ -62,6 +62,7 @@ def check_providers() -> Dict[str, Any]:
         
         providers_status = {
             "heygen": provider_config.heygen is not None,
+            "did": provider_config.did is not None,
             "higgsfield": provider_config.higgsfield is not None,
             "wav2lip": provider_config.wav2lip is not None,
             "elevenlabs": provider_config.elevenlabs is not None,
