@@ -13,6 +13,7 @@ ENV/
 .env
 .env.local
 .env.*.local
+.env.example
 
 # Firebase credentials (NUNCA subir a Git)
 firebase-credentials.json
