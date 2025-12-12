@@ -19,7 +19,7 @@ class ElevenLabsTTSProvider(TTSProvider):
         
         Args:
             api_key: ElevenLabs API key (defaults to ELEVENLABS_API_KEY env var)
-            voice_id: Voice ID to use (defaults to PAPA_NOEL_VOICE_ID or "21m00Tcm4TlvDq8ikWAM")
+            voice_id: Voice ID to use (defaults to PAPA_NOEL_VOICE_ID or "")
         """
         self.api_key = api_key or os.getenv("ELEVENLABS_API_KEY")
         # Usar voz de Papá Noel configurada para ElevenLabs
@@ -27,7 +27,7 @@ class ElevenLabsTTSProvider(TTSProvider):
         self.voice_id = (
             voice_id or 
             os.getenv("PAPA_NOEL_VOICE_ID_ELEVENLABS") or 
-            os.getenv("PAPA_NOEL_VOICE_ID", "bkVwoLpm00fYfz45ZQAb")  # Fallback para compatibilidad
+            os.getenv("PAPA_NOEL_VOICE_ID", "")  # Fallback para compatibilidad
         )
         self.api_url = "https://api.elevenlabs.io/v1/text-to-speech"
     

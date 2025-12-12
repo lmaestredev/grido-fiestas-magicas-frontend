@@ -20,16 +20,22 @@ firebase-credentials.json
 *-firebase-adminsdk-*.json
 *firebase*.json
 grido-479823-*.json
+*-credentials.json
 
-# Storage local
+# Storage
 storage/
-*.mp4
-*.mov
+storage/*.mp4
+storage/*.mov
+storage/*.wav
+storage/*.mp3
 
 # Cache and temporary directories
 cache/
 temp/
 **/temp/
+/tmp/
+*.tmp
+*.log
 
 # IDE
 .vscode/
@@ -41,3 +47,6 @@ temp/
 .DS_Store
 Thumbs.db
 
+# External repositories (instalar manualmente)
+MuseTalk/
+wav2lip/

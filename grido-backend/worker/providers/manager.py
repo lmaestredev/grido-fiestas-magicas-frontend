@@ -43,7 +43,6 @@ class ProviderManager:
         try:
             from config.providers_config import ProviderConfig, validate_providers
         except ImportError:
-            # Fallback para compatibilidad: validar manualmente
             logger.warning("No se pudo importar config.providers_config, usando validación manual")
             provider_config = None
         
@@ -52,7 +51,6 @@ class ProviderManager:
                 provider_config = validate_providers()
             except Exception as e:
                 logger.error(f"Error validando providers: {e}")
-                # Para compatibilidad hacia atrás, intentar inicializar sin validación
                 provider_config = None
         
 
@@ -267,6 +265,38 @@ class ProviderManager:
         
         raise Exception(f"All video providers failed. Last error: {str(last_error)}")
     
+    @staticmethod
+    def _get_video_duration(video_path: Path) -> float:
+        """Obtiene la duración de un video en segundos."""
+        result = subprocess.run([
+            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            "-of", "json", str(video_path)
+        ], capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+        return float(data["format"]["duration"])
+    
+    @staticmethod
+    def _get_video_fps(video_path: Path) -> float:
+        """Obtiene el FPS de un video."""
+        result = subprocess.run([
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=r_frame_rate", "-of", "json", str(video_path)
+        ], capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+        rate = data["streams"][0]["r_frame_rate"]
+        num, den = map(int, rate.split("/"))
+        return num / den if den > 0 else 25.0
+    
+    @staticmethod
+    def _has_audio_stream(video_path: Path) -> bool:
+        """Verifica si un video tiene stream de audio."""
+        result = subprocess.run([
+            "ffprobe", "-v", "error", "-select_streams", "a:0",
+            "-show_entries", "stream=codec_type", "-of", "json",
+            str(video_path)
+        ], capture_output=True, text=True)
+        return "codec_type" in result.stdout
+    
     def _compose_videos_with_overlaps(
         self,
         intro_video: Path,
@@ -274,10 +304,12 @@ class ProviderManager:
         outro_video: Path,
         output_path: Path,
         video_id: str = "",
-        overlap_frames: int = 15,  # ~0.6 segundos a 25fps
+        overlap_frames: int = 15,
     ) -> Path:
         """
-        Compone videos con overlaps para transiciones suaves manteniendo transparencia.
+        Compone videos con overlaps para transiciones suaves.
+        
+        Usa concatenación con FFmpeg concat filter y sincroniza audio con adelay.
         
         Args:
             intro_video: Video intro (Frames_1_2_to_3.mov)
@@ -285,37 +317,17 @@ class ProviderManager:
             outro_video: Video cierre (Frame_4_NocheMagica.mov)
             output_path: Path donde guardar el video final
             video_id: Video ID para logging
-            overlap_frames: Número de frames para overlap (default: 15 frames)
+            overlap_frames: Número de frames para overlap (default: 15)
             
         Returns:
             Path al video final compuesto
         """
         logger.info(f"[{video_id}] Componiendo videos con overlaps...")
         
-        def get_video_duration(video_path: Path) -> float:
-            """Obtiene la duración de un video en segundos."""
-            result = subprocess.run([
-                "ffprobe", "-v", "error", "-show_entries", "format=duration",
-                "-of", "json", str(video_path)
-            ], capture_output=True, text=True, check=True)
-            data = json.loads(result.stdout)
-            return float(data["format"]["duration"])
-        
-        def get_video_fps(video_path: Path) -> float:
-            """Obtiene el FPS de un video."""
-            result = subprocess.run([
-                "ffprobe", "-v", "error", "-select_streams", "v:0",
-                "-show_entries", "stream=r_frame_rate", "-of", "json", str(video_path)
-            ], capture_output=True, text=True, check=True)
-            data = json.loads(result.stdout)
-            rate = data["streams"][0]["r_frame_rate"]
-            num, den = map(int, rate.split("/"))
-            return num / den if den > 0 else 25.0
-        
-        intro_duration = get_video_duration(intro_video)
-        main_duration = get_video_duration(main_video)
-        outro_duration = get_video_duration(outro_video)
-        fps = get_video_fps(intro_video)
+        intro_duration = self._get_video_duration(intro_video)
+        main_duration = self._get_video_duration(main_video)
+        outro_duration = self._get_video_duration(outro_video)
+        fps = self._get_video_fps(intro_video)
         
         overlap_seconds = overlap_frames / fps
         total_duration = intro_duration + main_duration + outro_duration - (2 * overlap_seconds)
@@ -326,26 +338,15 @@ class ProviderManager:
             f"Overlap: {overlap_seconds:.2f}s, Total: {total_duration:.2f}s"
         )
         
-        def has_audio_stream(video_path: Path) -> bool:
-            """Verifica si un video tiene stream de audio."""
-            result = subprocess.run([
-                "ffprobe", "-v", "error", "-select_streams", "a:0",
-                "-show_entries", "stream=codec_type", "-of", "json",
-                str(video_path)
-            ], capture_output=True, text=True)
-            return "codec_type" in result.stdout
-        
-        intro_has_audio = has_audio_stream(intro_video)
-        main_has_audio = has_audio_stream(main_video)
-        outro_has_audio = has_audio_stream(outro_video)
+        intro_has_audio = self._has_audio_stream(intro_video)
+        main_has_audio = self._has_audio_stream(main_video)
+        outro_has_audio = self._has_audio_stream(outro_video)
         
         logger.info(
             f"[{video_id}] Audio streams - Intro: {intro_has_audio}, "
             f"Main: {main_has_audio}, Outro: {outro_has_audio}"
         )
         
-        # Usar concatenación simple con concat filter (más confiable que overlay con enable)
-        # Cortar intro para el overlap, luego concatenar main y outro completos
         intro_cut_duration = intro_duration - overlap_seconds
         video_filter = (
             f"[0:v] scale=1080:1920:flags=lanczos, setpts=PTS-STARTPTS, "
@@ -355,34 +356,27 @@ class ProviderManager:
             f"[v0][v1][v2] concat=n=3:v=1:a=0 [v]"
         )
         
-        # Preparar audio: usar adelay para sincronizar con el video en la concatenación
         audio_filters = []
         audio_inputs = []
         if intro_has_audio:
             audio_filters.append(f"[0:a] atrim=start=0:end={intro_cut_duration}, asetpts=PTS-STARTPTS [a0]")
             audio_inputs.append("[a0]")
         if main_has_audio:
-            # Audio del main empieza cuando el video main aparece (después del intro)
             delay_ms = int(intro_cut_duration * 1000)
             audio_filters.append(f"[1:a] atrim=start=0, asetpts=PTS-STARTPTS, adelay={delay_ms}|{delay_ms} [a1]")
             audio_inputs.append("[a1]")
         if outro_has_audio:
-            # Audio del outro empieza cuando el video outro aparece (después del intro y main)
             outro_start_time = intro_cut_duration + main_duration
             delay_ms = int(outro_start_time * 1000)
             audio_filters.append(f"[2:a] atrim=start=0, asetpts=PTS-STARTPTS, adelay={delay_ms}|{delay_ms} [a2]")
             audio_inputs.append("[a2]")
         
-        # Construir filtro completo: usar amix para mezclar audios con sus delays
         if audio_filters and audio_inputs:
             audio_filter = "; ".join(audio_filters)
-            # Usar amix para mezclar los audios con sus delays correspondientes
             mix_filter = f"{' '.join(audio_inputs)} amix=inputs={len(audio_inputs)}:duration=longest:dropout_transition=0 [a]"
             filter_complex = f"{video_filter}; {audio_filter}; {mix_filter}"
         else:
             filter_complex = video_filter
-        
-        # Ejecutar FFmpeg con composición
         cmd = [
             "ffmpeg",
             "-i", str(intro_video),
@@ -410,14 +404,14 @@ class ProviderManager:
             "-y", str(output_path)
         ])
         
-        logger.info(f"[{video_id}] Ejecutando FFmpeg con overlaps...")
+        logger.info(f"[{video_id}] Ejecutando FFmpeg...")
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode != 0:
             logger.error(f"[{video_id}] FFmpeg error: {result.stderr}")
             raise Exception(f"FFmpeg composition failed: {result.stderr}")
         
-        logger.info(f"[{video_id}] ✅ Videos compuestos con overlaps")
+        logger.info(f"[{video_id}] ✅ Videos compuestos exitosamente")
         return output_path
     
     def _process_with_heygen(
@@ -465,7 +459,7 @@ class ProviderManager:
             script_frame3,
             avatar_id=get_papa_noel_avatar_id(),
             output_path=main_video_path,
-            voice_id=get_papa_noel_voice_id_heygen(),  # Usar voice_id específico de HeyGen
+            voice_id=get_papa_noel_voice_id_heygen(),
         )
         
         audio_frame2_path = temp_dir / "audio_frame2.wav"

@@ -26,12 +26,10 @@ class HeyGenVideoProvider(VideoProvider):
             avatar_id: Avatar ID to use (defaults to PAPA_NOEL_AVATAR_ID or "default")
         """
         self.api_key = api_key or os.getenv("HEYGEN_API_KEY")
-        # Usar avatar de Papá Noel configurado, o fallback a default
         self.avatar_id = avatar_id or os.getenv("PAPA_NOEL_AVATAR_ID", "default")
-        # HeyGen API v2 endpoint (más reciente)
         self.api_base_url = os.getenv("HEYGEN_API_BASE_URL", "https://api.heygen.com/v2")
-        self.poll_interval = 5  # seconds
-        self.max_poll_time = 600  # 10 minutes max
+        self.poll_interval = 5
+        self.max_poll_time = 600
     
     def is_available(self) -> bool:
         """Check if HeyGen is available (has API key)."""
@@ -56,7 +54,7 @@ class HeyGenVideoProvider(VideoProvider):
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                # El voice_id puede estar en diferentes lugares según la respuesta
+                # voice_id puede estar en diferentes lugares según la respuesta de la API
                 voice_id = (
                     data.get("data", {}).get("voice_id") or
                     data.get("data", {}).get("default_voice_id") or
@@ -74,19 +72,20 @@ class HeyGenVideoProvider(VideoProvider):
         """
         Poll HeyGen API for video generation status.
         
+        Intenta múltiples endpoints para compatibilidad con diferentes versiones de la API.
+        Referencia: https://docs.heygen.com/docs/create-video
+        
         Args:
             task_id: Task/Video ID returned by HeyGen API
             
         Returns:
             Status response from API
         """
-        # Endpoints posibles según distintas versiones de la API / documentación
-        # Referencia: https://docs.heygen.com/docs/create-video (Retrieve Video Status/Details)
         endpoints = [
-            f"https://api.heygen.com/v2/video/{task_id}",              # v2 (documentación reciente)
-            f"https://api.heygen.com/v1/video/{task_id}",              # v1 (compatibilidad)
-            f"https://api.heygen.com/v2/video/status?video_id={task_id}",  # v2 con query param
-            f"https://api.heygen.com/v1/video/status?video_id={task_id}",  # v1 con query param
+            f"https://api.heygen.com/v2/video/{task_id}",
+            f"https://api.heygen.com/v1/video/{task_id}",
+            f"https://api.heygen.com/v2/video/status?video_id={task_id}",
+            f"https://api.heygen.com/v1/video/status?video_id={task_id}",
         ]
         
         headers = {
@@ -137,11 +136,13 @@ class HeyGenVideoProvider(VideoProvider):
         """
         Generate a complete video with TTS and lip-sync using HeyGen API.
         
+        Referencia: https://docs.heygen.com/docs/create-video
+        
         Args:
             script: Text script for the video
             avatar_id: ID of the avatar/character to use
             output_path: Path where the video should be saved
-            **kwargs: Additional parameters (voice_id, etc.)
+            **kwargs: Additional parameters (voice_id, video_title, dimension, etc.)
             
         Returns:
             Path to the generated video
@@ -149,7 +150,6 @@ class HeyGenVideoProvider(VideoProvider):
         if not self.is_available():
             raise Exception("HeyGen API key not configured")
         
-        # Use provided avatar_id or default (en nuestro caso, talking_photo_id)
         avatar = avatar_id or self.avatar_id
         
         # Validar que el ID sea válido (debe ser un string largo, no "default" o números cortos)
@@ -166,18 +166,13 @@ class HeyGenVideoProvider(VideoProvider):
             logger.error(f"[HeyGen] ❌ {error_msg}")
             raise Exception(error_msg)
         
-        # Step 1: Create video generation task
-        # Según documentación oficial de HeyGen API v2 (Developer Guide):
-        # https://docs.heygen.com/docs/create-video
-        # Endpoint: POST https://api.heygen.com/v2/video/generate
         url = "https://api.heygen.com/v2/video/generate"
         
         headers = {
-            "X-Api-Key": self.api_key,  # Autenticación: https://docs.heygen.com/reference/authentication
+            "X-Api-Key": self.api_key,
             "Content-Type": "application/json",
         }
         
-        # Obtener voice_id
         # Prioridad: parámetro > voice_id del avatar > PAPA_NOEL_VOICE_ID_HEYGEN > PAPA_NOEL_VOICE_ID
         voice_id = kwargs.get("voice_id")
         
@@ -199,29 +194,11 @@ class HeyGenVideoProvider(VideoProvider):
         
         logger.info(f"[HeyGen] Usando voice_id: {voice_id}")
         
-        # Payload alineado con la guía oficial "Create Avatar Videos (V2)"
-        # Referencia (Developer Guide): https://docs.heygen.com/docs/create-video
-        # Estructura base:
-        # {
-        #   "video_inputs": [
-        #     {
-        #       "character": { "type": "avatar", "avatar_id": "...", "avatar_style": "normal" },
-        #       "voice": {
-        #         "type": "text",
-        #         "input_text": "Hello...",
-        #         "voice_id": "...",
-        #         "speed": 1.0
-        #       }
-        #     }
-        #   ],
-        #   "dimension": { "width": 1080, "height": 1920 }
-        # }
         video_title = kwargs.get("video_title") or "Mensaje de Papá Noel"
         dimension = kwargs.get("dimension") or {"width": 1080, "height": 1920}
         voice_speed = float(kwargs.get("voice_speed", 1.0))
 
-        # Permitir elegir tipo de character por kwargs/env (default: talking_photo)
-        # Para Papá Noel usamos talking_photo_id (PHOTO avatar)
+        # Para Papá Noel usamos talking_photo (PHOTO avatar) por defecto
         character_type = (
             kwargs.get("character_type")
             or os.getenv("HEYGEN_CHARACTER_TYPE")
@@ -242,7 +219,6 @@ class HeyGenVideoProvider(VideoProvider):
                 "circle_background_color": kwargs.get("tp_circle_bg", "#FFFFFF"),
             }
         else:
-            # Fallback: avatar clásico
             character_obj = {
                 "type": "avatar",
                 "avatar_id": avatar,
@@ -296,17 +272,17 @@ class HeyGenVideoProvider(VideoProvider):
             if not task_id:
                 raise Exception(f"HeyGen API did not return video_id: {result}")
             
-            # Step 2: Poll for video completion
+            # Poll for video completion
             start_time = time.time()
             while time.time() - start_time < self.max_poll_time:
                 status_response = self._poll_video_status(task_id)
                 
-                # El MCP retorna status directamente o dentro de data
+                # status puede estar directamente o dentro de data
                 status_data = status_response.get("data", {}) or status_response
                 status = status_data.get("status") or status_response.get("status")
                 
                 if status == "completed" or status == "success":
-                    # El MCP retorna video_url directamente o dentro de data
+                    # video_url puede estar directamente o dentro de data
                     video_url = (
                         status_data.get("video_url") or 
                         status_response.get("video_url") or
@@ -315,7 +291,6 @@ class HeyGenVideoProvider(VideoProvider):
                     if not video_url:
                         raise Exception("HeyGen video completed but no URL provided")
                     
-                    # Step 3: Download video
                     return self._download_video(video_url, output_path)
                 
                 elif status == "failed" or status == "error":
@@ -327,7 +302,6 @@ class HeyGenVideoProvider(VideoProvider):
                     )
                     raise Exception(f"HeyGen video generation failed: {error_msg}")
                 
-                # Status is "processing" or "pending", wait and retry
                 time.sleep(self.poll_interval)
             
             raise Exception(f"HeyGen video generation timed out after {self.max_poll_time} seconds")
@@ -336,4 +310,3 @@ class HeyGenVideoProvider(VideoProvider):
             raise Exception(f"HeyGen API request failed: {str(e)}")
         except Exception as e:
             raise Exception(f"HeyGen video generation failed: {str(e)}")
-

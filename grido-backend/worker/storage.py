@@ -3,12 +3,51 @@ Storage providers para subir videos generados.
 Soporta múltiples opciones: Firebase Storage, Vercel Blob, Railway, S3/R2, o local.
 """
 
+import json
+import logging
 import os
+import shutil
 from pathlib import Path
 from typing import Optional
-import logging
+
+# Third-party imports (condicionales - se importan cuando se necesitan)
+# firebase_admin - importado en upload_to_firebase()
+# vercel_blob - importado en upload_to_vercel_blob()
+# boto3 - importado en upload_to_s3_r2()
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Environment Variables Configuration
+# ============================================================================
+# Variables de entorno utilizadas:
+#
+# General:
+#   STORAGE_TYPE: Tipo de storage a usar (firebase, vercel, railway, s3, r2, local)
+#
+# Firebase:
+#   FIREBASE_STORAGE_BUCKET: Nombre del bucket de Firebase Storage
+#   FIREBASE_CREDENTIALS_PATH: Ruta al archivo JSON de credenciales
+#   FIREBASE_CREDENTIALS_JSON: Contenido JSON de credenciales como string
+#
+# Vercel Blob:
+#   VERCEL_BLOB_TOKEN: Token de autenticación de Vercel Blob
+#
+# Railway:
+#   RAILWAY_STORAGE_PATH: Ruta donde guardar videos en Railway
+#   API_BASE_URL: URL base de la API para servir videos
+#
+# S3/R2:
+#   AWS_ENDPOINT_URL: Endpoint URL (requerido para R2)
+#   AWS_ACCESS_KEY_ID: Access key ID
+#   AWS_SECRET_ACCESS_KEY: Secret access key
+#   S3_BUCKET: Nombre del bucket
+#   AWS_REGION: Región de AWS (default: us-east-1)
+#
+# Local:
+#   LOCAL_STORAGE_PATH: Ruta donde guardar videos localmente (default: ./storage)
+# ============================================================================
 
 
 def upload_video(video_id: str, file_path: Path) -> str:
@@ -33,10 +72,9 @@ def upload_video(video_id: str, file_path: Path) -> str:
         return upload_to_vercel_blob(video_id, file_path)
     elif storage_type == "railway":
         return upload_to_railway(video_id, file_path)
-    elif storage_type == "s3" or storage_type == "r2":
+    elif storage_type in ("s3", "r2"):
         return upload_to_s3_r2(video_id, file_path)
     else:
-        # Default: local storage (para pruebas)
         return save_local(video_id, file_path)
 
 
@@ -50,8 +88,9 @@ def upload_to_firebase(video_id: str, file_path: Path) -> str:
     
     logger.info(f"[{video_id}] Subiendo a Firebase Storage...")
     
-    # Obtener storage bucket (puede venir de config o variable de entorno)
-    storage_bucket = os.getenv("FIREBASE_STORAGE_BUCKET", "grido-479823.firebasestorage.app")
+    storage_bucket = os.getenv("FIREBASE_STORAGE_BUCKET")
+    if not storage_bucket:
+        raise Exception("FIREBASE_STORAGE_BUCKET no configurado")
     
     # Inicializar Firebase si no está inicializado
     if not firebase_admin._apps:
@@ -65,8 +104,6 @@ def upload_to_firebase(video_id: str, file_path: Path) -> str:
                 'storageBucket': storage_bucket
             })
         elif cred_json:
-            # Usar credenciales desde variable de entorno (JSON string)
-            import json
             cred_dict = json.loads(cred_json)
             cred = credentials.Certificate(cred_dict)
             firebase_admin.initialize_app(cred, {
@@ -74,9 +111,7 @@ def upload_to_firebase(video_id: str, file_path: Path) -> str:
             })
         else:
             # Intentar usar Application Default Credentials (ADC)
-            # Útil cuando se ejecuta en Google Cloud o con gcloud auth
             try:
-                # ADC se detecta automáticamente si está configurado
                 firebase_admin.initialize_app(options={
                     'storageBucket': storage_bucket
                 })
@@ -94,16 +129,12 @@ def upload_to_firebase(video_id: str, file_path: Path) -> str:
     blob_path = f"videos/{video_id}.mp4"
     blob = bucket.blob(blob_path)
     
-    # Configurar metadata
     blob.metadata = {
         'contentType': 'video/mp4',
         'cacheControl': 'public, max-age=31536000'
     }
     
-    # Subir archivo
     blob.upload_from_filename(str(file_path), content_type="video/mp4")
-    
-    # Hacer público y obtener URL
     blob.make_public()
     video_url = blob.public_url
     
@@ -124,11 +155,9 @@ def upload_to_vercel_blob(video_id: str, file_path: Path) -> str:
     if not token:
         raise Exception("VERCEL_BLOB_TOKEN no configurado")
     
-    # Leer archivo
     with open(file_path, "rb") as f:
         file_data = f.read()
     
-    # Subir a Vercel Blob
     blob_path = f"videos/{video_id}.mp4"
     result = put(
         blob_path,
@@ -153,16 +182,12 @@ def upload_to_railway(video_id: str, file_path: Path) -> str:
     """
     logger.info(f"[{video_id}] Guardando video para Railway...")
     
-    # En Railway, normalmente guardarías en un volumen persistente
-    # y servirías a través de tu API
     storage_path = Path(os.getenv("RAILWAY_STORAGE_PATH", "/app/storage"))
     storage_path.mkdir(parents=True, exist_ok=True)
     
     destination = storage_path / f"{video_id}.mp4"
-    import shutil
     shutil.copy2(file_path, destination)
     
-    # URL que apunta a tu API (ajustar según tu dominio)
     api_base_url = os.getenv("API_BASE_URL", "http://localhost:3000")
     video_url = f"{api_base_url}/api/videos/{video_id}.mp4"
     
@@ -176,8 +201,7 @@ def upload_to_s3_r2(video_id: str, file_path: Path) -> str:
     
     logger.info(f"[{video_id}] Subiendo a S3/R2...")
     
-    # Configuración
-    endpoint_url = os.getenv("AWS_ENDPOINT_URL")  # Para R2
+    endpoint_url = os.getenv("AWS_ENDPOINT_URL")
     access_key = os.getenv("AWS_ACCESS_KEY_ID")
     secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
     bucket = os.getenv("S3_BUCKET")
@@ -186,7 +210,6 @@ def upload_to_s3_r2(video_id: str, file_path: Path) -> str:
     if not all([access_key, secret_key, bucket]):
         raise Exception("Credenciales de S3/R2 no configuradas")
     
-    # Crear cliente
     s3_client = boto3.client(
         's3',
         endpoint_url=endpoint_url,
@@ -197,7 +220,6 @@ def upload_to_s3_r2(video_id: str, file_path: Path) -> str:
     
     key = f"videos/{video_id}.mp4"
     
-    # Subir archivo
     s3_client.upload_file(
         str(file_path),
         bucket,
@@ -205,7 +227,6 @@ def upload_to_s3_r2(video_id: str, file_path: Path) -> str:
         ExtraArgs={'ContentType': 'video/mp4'}
     )
     
-    # Generar URL
     if endpoint_url:  # R2
         video_url = f"https://{bucket}.r2.dev/{key}"
     else:  # S3
@@ -222,19 +243,15 @@ def save_local(video_id: str, file_path: Path) -> str:
     """
     logger.info(f"[{video_id}] Guardando video localmente...")
     
-    # Directorio de storage local
     local_storage = Path(os.getenv("LOCAL_STORAGE_PATH", "./storage"))
     local_storage.mkdir(parents=True, exist_ok=True)
     
     destination = local_storage / f"{video_id}.mp4"
-    import shutil
     shutil.copy2(file_path, destination)
     
-    # URL local (para pruebas)
     video_url = f"file://{destination.absolute()}"
     
     logger.info(f"[{video_id}] Video guardado localmente: {destination}")
     logger.info(f"[{video_id}] Para servir: python -m http.server 8000 --directory {local_storage}")
     
     return video_url
-

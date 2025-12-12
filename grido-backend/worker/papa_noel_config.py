@@ -8,32 +8,36 @@ Este módulo define:
 """
 
 import os
+from pathlib import Path
 from typing import Dict, Any, Optional
 
 # ============================================================================
-# CONFIGURACIÓN DE VOZ
+# Environment Variables
+# ============================================================================
+# Variables de entorno utilizadas:
+#
+# Voice IDs:
+#   PAPA_NOEL_VOICE_ID_ELEVENLABS: Voice ID para ElevenLabs
+#   PAPA_NOEL_VOICE_ID_HEYGEN: Voice ID para HeyGen
+#   PAPA_NOEL_VOICE_ID: Voice ID genérico (deprecated, fallback)
+#
+# Avatar/Image:
+#   PAPA_NOEL_AVATAR_ID: Avatar ID para HeyGen
+#   PAPA_NOEL_IMAGE_PATH: Ruta a la imagen de Papá Noel para D-ID
+#
+# LLM (opcional):
+#   USE_LLM_FOR_DIALOGS: Habilitar generación de diálogos con LLM
+#   LLM_PROVIDER: Proveedor de LLM (openai, anthropic, etc.)
+#   LLM_MODEL: Modelo de LLM a usar (gpt-4, claude-3, etc.)
 # ============================================================================
 
-# Voice ID de Papá Noel para ElevenLabs
-# Puedes cambiar esto en el .env con PAPA_NOEL_VOICE_ID_ELEVENLABS
-PAPA_NOEL_VOICE_ID_ELEVENLABS = os.getenv("PAPA_NOEL_VOICE_ID_ELEVENLABS", "bkVwoLpm00fYfz45ZQAb")
-
-# Voice ID de Papá Noel para HeyGen
-# Puedes cambiar esto en el .env con PAPA_NOEL_VOICE_ID_HEYGEN
+# Voice IDs
+PAPA_NOEL_VOICE_ID_ELEVENLABS = os.getenv("PAPA_NOEL_VOICE_ID_ELEVENLABS", "")
 PAPA_NOEL_VOICE_ID_HEYGEN = os.getenv("PAPA_NOEL_VOICE_ID_HEYGEN", "")
-
-# Voice ID genérico (compatibilidad hacia atrás - deprecated)
-# Se usa como fallback si las variables específicas no están configuradas
-PAPA_NOEL_VOICE_ID = os.getenv("PAPA_NOEL_VOICE_ID", "")
-
-# Avatar ID para HeyGen (si se usa)
+PAPA_NOEL_VOICE_ID = os.getenv("PAPA_NOEL_VOICE_ID", "")  # Deprecated: fallback
 PAPA_NOEL_AVATAR_ID = os.getenv("PAPA_NOEL_AVATAR_ID", "default")
 
-
-# ============================================================================
-# PERSONALIDAD Y CONTEXTO DE PAPÁ NOEL
-# ============================================================================
-
+# Personalidad y contexto
 PAPA_NOEL_PERSONALITY = """
 Eres Papá Noel (Santa Claus), un personaje cálido, alegre y paternal. 
 Tus características principales:
@@ -56,15 +60,9 @@ Contexto de la situación:
 - Querés hacer que cada niño se sienta especial y querido
 """
 
-
-# ============================================================================
-# DIÁLOGOS BASE Y PLANTILLAS
-# ============================================================================
-
-# Frase de introducción (Frame 2)
+# Plantillas de diálogo
 FRAME2_PHRASE = "¡Ho, ho, ho! Mirá lo que tengo para vos..."
 
-# Plantilla principal del mensaje (Frame 3)
 FRAME3_TEMPLATE = """
 ¡Hola {nombre}! Soy Papá Noel y vengo desde el Polo Norte para saludarte en esta Noche Mágica.
 
@@ -80,11 +78,6 @@ Y recordá, la magia está en compartir... ¡y en un rico helado de Grido!
 
 ¡Ho, ho, ho! ¡Feliz Noche Mágica!
 """
-
-
-# ============================================================================
-# FRASES Y EXPRESIONES TÍPICAS DE PAPÁ NOEL
-# ============================================================================
 
 PAPA_NOEL_PHRASES = {
     "greetings": [
@@ -119,39 +112,25 @@ PAPA_NOEL_PHRASES = {
     ],
 }
 
+# Configuración LLM (opcional)
+USE_LLM_FOR_DIALOGS = os.getenv("USE_LLM_FOR_DIALOGS", "false").lower() == "true"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4")
 
-# ============================================================================
-# FUNCIONES PARA GENERAR MENSAJES
-# ============================================================================
 
 def get_papa_noel_voice_id() -> str:
-    """
-    Obtiene el Voice ID de Papá Noel para ElevenLabs (compatibilidad hacia atrás).
-    
-    Returns:
-        Voice ID para ElevenLabs
-    """
-    return PAPA_NOEL_VOICE_ID_ELEVENLABS or PAPA_NOEL_VOICE_ID or "bkVwoLpm00fYfz45ZQAb"
+    """Obtiene el Voice ID de Papá Noel para ElevenLabs (compatibilidad hacia atrás)."""
+    return PAPA_NOEL_VOICE_ID_ELEVENLABS or PAPA_NOEL_VOICE_ID or ""
 
 
 def get_papa_noel_voice_id_heygen() -> str:
-    """
-    Obtiene el Voice ID de Papá Noel para HeyGen.
-    
-    Returns:
-        Voice ID para HeyGen, o cadena vacía si no está configurado
-    """
+    """Obtiene el Voice ID de Papá Noel para HeyGen."""
     return PAPA_NOEL_VOICE_ID_HEYGEN or PAPA_NOEL_VOICE_ID or ""
 
 
 def get_papa_noel_voice_id_elevenlabs() -> str:
-    """
-    Obtiene el Voice ID de Papá Noel para ElevenLabs.
-    
-    Returns:
-        Voice ID para ElevenLabs
-    """
-    return PAPA_NOEL_VOICE_ID_ELEVENLABS or PAPA_NOEL_VOICE_ID or "bkVwoLpm00fYfz45ZQAb"
+    """Obtiene el Voice ID de Papá Noel para ElevenLabs."""
+    return PAPA_NOEL_VOICE_ID_ELEVENLABS or PAPA_NOEL_VOICE_ID or ""
 
 
 def get_papa_noel_avatar_id() -> str:
@@ -176,8 +155,6 @@ def get_papa_noel_image_path() -> Path:
     Raises:
         Exception: Si no se encuentra la imagen
     """
-    from pathlib import Path
-    
     possible_paths = [
         Path(os.getenv("PAPA_NOEL_IMAGE_PATH", "")),
         Path("assets/Grido_PapaNoel.png"),
@@ -227,18 +204,12 @@ def generate_frame3_script(form_data: Dict[str, Any]) -> str:
 
 
 def get_papa_noel_system_prompt() -> str:
-    """
-    Obtiene el prompt del sistema para Papá Noel.
-    Útil si se usa un LLM para generar diálogos más personalizados.
-    """
+    """Obtiene el prompt del sistema para Papá Noel (útil para LLM)."""
     return f"{PAPA_NOEL_PERSONALITY}\n\n{PAPA_NOEL_CONTEXT}"
 
 
 def get_papa_noel_context_for_tts() -> str:
-    """
-    Obtiene el contexto completo para TTS.
-    Puede usarse como contexto adicional al generar el audio.
-    """
+    """Obtiene el contexto completo para TTS (contexto adicional al generar audio)."""
     return f"""
     {PAPA_NOEL_PERSONALITY}
     
@@ -250,18 +221,6 @@ def get_papa_noel_context_for_tts() -> str:
     - Ritmo pausado pero entusiasta
     - Acento argentino natural
     """
-
-
-# ============================================================================
-# CONFIGURACIÓN AVANZADA (OPCIONAL)
-# ============================================================================
-
-# Si quieres usar un LLM para generar diálogos más personalizados
-USE_LLM_FOR_DIALOGS = os.getenv("USE_LLM_FOR_DIALOGS", "false").lower() == "true"
-
-# Si está habilitado, se puede usar OpenAI/Anthropic para generar diálogos
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")  # openai, anthropic, etc.
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4")  # gpt-4, claude-3, etc.
 
 
 def generate_custom_dialog_with_llm(form_data: Dict[str, Any]) -> Optional[str]:
@@ -278,6 +237,4 @@ def generate_custom_dialog_with_llm(form_data: Dict[str, Any]) -> Optional[str]:
         return None
     
     # TODO: Implementar generación con LLM
-    # Por ahora, usar la plantilla estándar
     return generate_frame3_script(form_data)
-

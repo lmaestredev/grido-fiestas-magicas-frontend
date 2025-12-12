@@ -245,12 +245,12 @@ def process_video(video_id: str, data: dict):
             "completedAt": str(time.time())
         })
         
-        log(video_id, "✅ Completado")
+        log(video_id, "Completado")
         
         return {"success": True, "videoUrl": video_url}
         
     except Exception as e:
-        log(video_id, f"❌ Error: {str(e)}")
+        log(video_id, f"Error: {str(e)}")
         redis_client.hset(f"job:{video_id}", mapping={
             "status": "failed",
             "error": str(e),
@@ -271,7 +271,7 @@ def main():
     
     redis_client = redis.from_url(os.environ['REDIS_URL'])
     
-    print("🚀 Worker iniciado, esperando trabajos...")
+    print("Worker iniciado, esperando trabajos...")
     
     while True:
         try:
@@ -295,8 +295,8 @@ def main():
                 process_video.remote(video_id, data)
                 
         except KeyboardInterrupt:
-            print("\n👋 Worker detenido")
+            print("\n Worker detenido")
             break
         except Exception as e:
-            print(f"❌ Error: {str(e)}")
+            print(f" Error: {str(e)}")
             time.sleep(5)
