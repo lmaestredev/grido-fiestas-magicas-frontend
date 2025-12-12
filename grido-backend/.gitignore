@@ -50,3 +50,9 @@ Thumbs.db
 # External repositories (instalar manualmente)
 MuseTalk/
 wav2lip/
+
+# Video files (large assets should not be in Git)
+*.mov
+*.mp4
+worker/assets/*.mov
+worker/assets/*.mp4
