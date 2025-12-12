@@ -1,6 +1,5 @@
 import Image from "next/image";
 
-// Banner image dimensions from Figma
 const BANNER_DESKTOP_WIDTH = 1280;
 const BANNER_DESKTOP_HEIGHT = 636;
 const BANNER_MOBILE_WIDTH = 321;
@@ -9,7 +8,6 @@ const BANNER_MOBILE_HEIGHT = 370;
 export default function PromoBanner() {
   return (
     <section className="relative w-full overflow-hidden">
-      {/* Desktop Banner */}
       <div 
         className="relative w-full hidden md:block"
         style={{ aspectRatio: `${BANNER_DESKTOP_WIDTH}/${BANNER_DESKTOP_HEIGHT}` }}
@@ -24,7 +22,6 @@ export default function PromoBanner() {
         />
       </div>
 
-      {/* Mobile Banner */}
       <div 
         className="relative w-full md:hidden"
         style={{ aspectRatio: `${BANNER_MOBILE_WIDTH}/${BANNER_MOBILE_HEIGHT}` }}

@@ -25,7 +25,6 @@ export async function sendGreeting(
   prevState: GreetingFormState | null,
   formData: FormData
 ): Promise<GreetingFormState> {
-  // Extract form data
   const data: GreetingFormData = {
     nombre: formData.get("nombre") as string,
     parentesco: formData.get("parentesco") as string,
@@ -37,7 +36,6 @@ export async function sendGreeting(
     pedidoNocheMagica: formData.get("pedidoNocheMagica") as string,
   };
 
-  // Validation
   const errors: Partial<Record<keyof GreetingFormData, string>> = {};
 
   if (!data.nombre || data.nombre.trim().length < 2) {
@@ -80,7 +78,6 @@ export async function sendGreeting(
     };
   }
 
-  // Validación de contenido inapropiado
   const contentValidation = await validateFormContent({
     queHizo: data.queHizo,
     recuerdoEspecial: data.recuerdoEspecial,
@@ -96,13 +93,9 @@ export async function sendGreeting(
   }
 
   try {
-    // Call the video generation API
-    // En Server Actions, fetch necesita una URL completa
     let apiUrl = process.env.VIDEO_API_URL;
     
     if (!apiUrl) {
-      // Construir URL completa basada en el entorno
-      // En Server Actions, fetch necesita una URL completa
       let baseUrl: string;
       
       if (process.env.NEXT_PUBLIC_BASE_URL) {
@@ -110,10 +103,8 @@ export async function sendGreeting(
       } else if (process.env.VERCEL_URL) {
         baseUrl = `https://${process.env.VERCEL_URL}`;
       } else if (process.env.NODE_ENV === "production") {
-        // En producción sin URL configurada, asumir que es la misma URL
         baseUrl = "";
       } else {
-        // Desarrollo local
         baseUrl = "http://localhost:3000";
       }
       

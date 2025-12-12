@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useLenis } from "lenis/react";
 import { motion } from "motion/react";
 
-// Hero image dimensions from Figma
 const HERO_DESKTOP_WIDTH = 1280;
 const HERO_DESKTOP_HEIGHT = 831;
 const HERO_MOBILE_WIDTH = 321;
@@ -25,12 +24,10 @@ export default function HeroSection() {
 
   return (
     <section className="relative w-full overflow-hidden">
-      {/* Desktop Hero */}
       <div
         className="relative w-full hidden md:block"
         style={{ aspectRatio: `${HERO_DESKTOP_WIDTH}/${HERO_DESKTOP_HEIGHT}` }}
       >
-        {/* Background Image - bg_desktop.png estático */}
         <div className="absolute inset-0">
           <Image
             src="/images/hero/bg_desktop.png"
@@ -43,7 +40,6 @@ export default function HeroSection() {
           />
         </div>
 
-        {/* Elements Image - hero-background.png estático */}
         <div className="absolute inset-0 z-2">
           <Image
             src="/images/hero-background.png"
@@ -56,7 +52,6 @@ export default function HeroSection() {
           />
         </div>
 
-        {/* CTA Button Desktop - 68px height */}
         <button
           type="button"
           onClick={scrollToForm}
@@ -84,7 +79,6 @@ export default function HeroSection() {
         </button>
       </div>
 
-      {/* Mobile Hero */}
       <div
         className="relative w-full md:hidden"
         style={{ aspectRatio: `${HERO_MOBILE_WIDTH}/${HERO_MOBILE_HEIGHT}` }}
@@ -99,7 +93,6 @@ export default function HeroSection() {
           sizes="100vw"
         />
 
-        {/* CTA Button Mobile - smaller */}
         <button
           type="button"
           onClick={scrollToForm}

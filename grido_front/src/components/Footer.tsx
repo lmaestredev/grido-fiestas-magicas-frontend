@@ -8,7 +8,6 @@ export default function Footer() {
     <footer className="bg-grido-primary w-full">
       <div className="max-w-7xl mx-auto px-6 lg:px-[141px] py-[55px]">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-          {/* Logo */}
           <div className="shrink-0">
             <Image
               src="/images/grido-logo.png"

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { nanoid } from "nanoid";
 
-// Initialize Redis (Upstash for serverless)
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
@@ -20,7 +19,6 @@ export interface VideoRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify API secret
     const authHeader = request.headers.get("authorization");
     const expectedAuth = `Bearer ${process.env.VIDEO_API_SECRET}`;
     
@@ -31,10 +29,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse request body
     const body: VideoRequest = await request.json();
 
-    // Validate required fields
     if (!body.nombre || !body.email || !body.provincia) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -42,10 +38,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique video ID
     const videoId = nanoid(12);
 
-    // Create job object
     const job = {
       videoId,
       status: "pending",
@@ -53,13 +47,9 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    // Store job in Redis
     await redis.set(`job:${videoId}`, JSON.stringify(job));
-    
-    // Add to processing queue
     await redis.lpush("video:queue", videoId);
 
-    // Trigger worker (if using webhook-based workers)
     if (process.env.WORKER_WEBHOOK_URL) {
       fetch(process.env.WORKER_WEBHOOK_URL, {
         method: "POST",
@@ -82,7 +72,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Optional: GET endpoint to check video status
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const videoId = searchParams.get("videoId");

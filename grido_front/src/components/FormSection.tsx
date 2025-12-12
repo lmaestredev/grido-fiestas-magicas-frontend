@@ -14,7 +14,6 @@ const initialState: GreetingFormState = {
   message: "",
 };
 
-// Floating gift component with animation and parallax
 interface FloatingGiftProps {
   src: string;
   alt: string;
@@ -77,7 +76,6 @@ function FloatingGift({
   );
 }
 
-// Simple floating gift for mobile (no parallax)
 interface MobileGiftProps {
   src: string;
   alt: string;
@@ -155,9 +153,7 @@ export default function FormSection() {
       id="formulario"
       className="relative w-full bg-white py-8 md:py-16 overflow-x-hidden"
     >
-      {/* Mobile Gifts - positioned at top */}
       <div className="relative h-[120px] w-full mb-4 lg:hidden">
-        {/* Large red gift - right side */}
         <MobileGift
           src="/images/regalo-rojo.png"
           alt="Regalo rojo"
@@ -167,7 +163,6 @@ export default function FormSection() {
           floatAmount={5}
           rotateRange={2}
         />
-        {/* Small red gift - left top */}
         <MobileGift
           src="/images/regalo-rojo.png"
           alt="Regalo rojo pequeño"
@@ -177,7 +172,6 @@ export default function FormSection() {
           floatAmount={6}
           rotateRange={3}
         />
-        {/* Orange gift - center */}
         <MobileGift
           src="/images/regalo-naranja.png"
           alt="Regalo naranja"
@@ -187,7 +181,6 @@ export default function FormSection() {
           floatAmount={5}
           rotateRange={2}
         />
-        {/* Green gift - left bottom with rotation */}
         <MobileGift
           src="/images/regalo-lazo.png"
           alt="Regalo verde"
@@ -200,7 +193,6 @@ export default function FormSection() {
         />
       </div>
 
-      {/* Desktop floating gifts with parallax */}
       <FloatingGift
         src="/images/regalo-rojo.png"
         alt="Regalo decorativo"
@@ -253,7 +245,6 @@ export default function FormSection() {
         scrollYProgress={scrollYProgress}
       />
 
-      {/* Form Content */}
       <div className="relative z-10 max-w-[662px] mx-auto pt-[30vmin] md:pt-0 px-3 md:px-4">
         <h2 className="text-grido-primary-dark font-bold text-[24px] md:text-4xl text-center mb-2 md:mb-4">
           ¡Creemos
