@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get("authorization");
     const expectedAuth = `Bearer ${process.env.VIDEO_API_SECRET}`;
 
-    if (authHeader !== expectedAuth && false) {
+    if (authHeader !== expectedAuth) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      success: false,
+      success: true,
       message: "Video generation queued",
       videoId,
     });
