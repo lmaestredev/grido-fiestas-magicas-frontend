@@ -1,7 +1,7 @@
 {
-  "buildCommand": "cd grido_front && pnpm install && pnpm build",
-  "outputDirectory": "grido_front/.next",
-  "installCommand": "cd grido_front && pnpm install",
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next",
+  "installCommand": "pnpm install",
   "framework": "nextjs"
 }
 
