@@ -286,6 +286,7 @@ export default function FormSection() {
                 type="text"
                 name="nombre"
                 placeholder="Tu nombre"
+                defaultValue={state.formData?.nombre || ""}
                 className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
                 whileFocus={{ scale: 1.02, borderColor: "#0033A0" }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -302,6 +303,7 @@ export default function FormSection() {
                 type="text"
                 name="parentesco"
                 placeholder="Tu parentesco"
+                defaultValue={state.formData?.parentesco || ""}
                 className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
                 whileFocus={{ scale: 1.02, borderColor: "#0033A0" }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -319,6 +321,7 @@ export default function FormSection() {
                   type="text"
                   name="email"
                   placeholder="Tu email"
+                  defaultValue={state.formData?.email || ""}
                   className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
                   whileFocus={{ scale: 1.02, borderColor: "#0033A0" }}
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -332,8 +335,9 @@ export default function FormSection() {
               <div className="w-[130px] md:w-[180px]">
                 <div className="relative">
                   <select
+                    key={state.formData?.emailDomain || "default"}
                     name="emailDomain"
-                    defaultValue="@gmail.com"
+                    defaultValue={state.formData?.emailDomain || "@gmail.com"}
                     className="w-full h-[47px] px-2 md:px-4 pr-8 md:pr-10 border border-grido-primary-dark rounded-[10px] text-[13px] md:text-lg text-grido-placeholder appearance-none bg-white cursor-pointer"
                   >
                     {EMAIL_DOMAINS.map((domain) => (
@@ -368,8 +372,9 @@ export default function FormSection() {
 
             <div className="relative">
               <select
+                key={state.formData?.provincia || "default"}
                 name="provincia"
-                defaultValue=""
+                defaultValue={state.formData?.provincia || ""}
                 className="w-full h-[47px] px-4 pr-10 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg text-grido-placeholder appearance-none bg-white cursor-pointer"
               >
                 <option value="" disabled>
@@ -401,6 +406,7 @@ export default function FormSection() {
                 name="queHizo"
                 placeholder="Contame que hizo en el año!"
                 rows={3}
+                defaultValue={state.formData?.queHizo || ""}
                 className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
                 whileFocus={{ scale: 1.01, borderColor: "#0033A0" }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -417,6 +423,7 @@ export default function FormSection() {
                 name="recuerdoEspecial"
                 placeholder="¿Un recuerdo especial para mencionarle?"
                 rows={3}
+                defaultValue={state.formData?.recuerdoEspecial || ""}
                 className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
                 whileFocus={{ scale: 1.01, borderColor: "#0033A0" }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -433,6 +440,7 @@ export default function FormSection() {
                 name="pedidoNocheMagica"
                 placeholder="¿Cuál es su pedido de Noche Mágica?"
                 rows={3}
+                defaultValue={state.formData?.pedidoNocheMagica || ""}
                 className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
                 whileFocus={{ scale: 1.01, borderColor: "#0033A0" }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}

@@ -1,16 +1,36 @@
 import { containsProhibitedWords } from "./prohibitedWords";
 
-const PERSPECTIVE_API_KEY = process.env.PERSPECTIVE_API_KEY || "";
-const PERSPECTIVE_API_URL = "https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze";
+const OPENAI_API_KEY = process.env.OPEN_AI_API_KEY || "";
+const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 
-interface PerspectiveResponse {
-  attributeScores?: {
-    TOXICITY?: { summaryScore?: { value?: number } };
-    SEVERE_TOXICITY?: { summaryScore?: { value?: number } };
-    IDENTITY_ATTACK?: { summaryScore?: { value?: number } };
-    INSULT?: { summaryScore?: { value?: number } };
-    PROFANITY?: { summaryScore?: { value?: number } };
-    THREAT?: { summaryScore?: { value?: number } };
+interface OpenAIChatResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+interface ModerationAnalysis {
+  isValid: boolean;
+  reason?: string;
+  categories?: string[];
+  scores?: {
+    toxicity?: number;
+    inappropriate?: number;
+    offensive?: number;
   };
 }
 
@@ -19,100 +39,121 @@ export interface ContentModerationResult {
   reason?: string;
   scores?: {
     toxicity?: number;
-    severeToxicity?: number;
-    insult?: number;
-    profanity?: number;
+    inappropriate?: number;
+    offensive?: number;
   };
+  categories?: string[];
+}
+
+async function analyzeWithGPT(text: string): Promise<ModerationAnalysis> {
+  const systemPrompt = `Eres un moderador de contenido experto. Tu tarea es analizar textos destinados a saludos navideños familiares para niños.
+
+Debes rechazar contenido que contenga:
+1. Lenguaje ofensivo, vulgar o inapropiado
+2. Contenido sexual o sugerente
+3. Violencia o amenazas
+4. Discurso de odio o discriminación
+5. Referencias políticas o religiosas (aunque sean positivas)
+6. Drogas, alcohol o sustancias ilícitas
+7. Temas sensibles o inapropiados para niños
+
+Debes aprobar contenido que sea:
+- Alegre, positivo y familiar
+- Apropiado para todas las edades
+- Relacionado con celebraciones, logros personales, recuerdos felices
+- Sin mencionar política, religión o temas controvertidos
+
+Responde ÚNICAMENTE con un objeto JSON válido con esta estructura:
+{
+  "isValid": true o false,
+  "reason": "explicación breve en español argentino (solo si isValid es false)",
+  "categories": ["categoría1", "categoría2"] (solo si isValid es false),
+  "confidence": número entre 0 y 1
+}`;
+
+  const userPrompt = `Analiza el siguiente texto y determina si es apropiado para un saludo navideño familiar:
+
+"${text}"
+
+Responde solo con el objeto JSON.`;
+
+  try {
+    const response = await fetch(OPENAI_CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 300,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error en OpenAI Chat API:", errorText);
+      return { isValid: true }; // Fallback: aprobar si hay error
+    }
+
+    const data: OpenAIChatResponse = await response.json();
+    const content = data.choices[0]?.message?.content;
+
+    if (!content) {
+      console.error("No se recibió contenido de GPT");
+      return { isValid: true };
+    }
+
+    const analysis = JSON.parse(content) as ModerationAnalysis;
+    return analysis;
+  } catch (error) {
+    console.error("Error en análisis con GPT:", error);
+    return { isValid: true }; // Fallback: aprobar si hay error
+  }
 }
 
 export async function validateContent(
   text: string,
   fieldName: string
 ): Promise<ContentModerationResult> {
+  // Validar palabras prohibidas (incluye contenido ofensivo, político y religioso)
   if (containsProhibitedWords(text)) {
     return {
       isValid: false,
-      reason: `El contenido contiene palabras o frases inapropiadas. Por favor, usá un lenguaje respetuoso.`,
+      reason: `El contenido contiene palabras o frases inapropiadas. Por favor, usá un lenguaje respetuoso y evitá temas políticos o religiosos.`,
     };
   }
 
-  if (!PERSPECTIVE_API_KEY) {
-    console.warn("PERSPECTIVE_API_KEY no configurada, solo validando con lista de palabras");
+  if (!OPENAI_API_KEY) {
+    console.warn("OPENAI_API_KEY no configurada, solo validando con lista de palabras");
     return { isValid: true };
   }
 
   try {
-    const response = await fetch(
-      `${PERSPECTIVE_API_URL}?key=${PERSPECTIVE_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          comment: {
-            text: text,
-          },
-          requestedAttributes: {
-            TOXICITY: {},
-            SEVERE_TOXICITY: {},
-            IDENTITY_ATTACK: {},
-            INSULT: {},
-            PROFANITY: {},
-            THREAT: {},
-          },
-          languages: ["es"],
-        }),
-      }
-    );
+    const gptAnalysis = await analyzeWithGPT(text);
 
-    if (!response.ok) {
-      console.error("Error en Perspective API:", await response.text());
-      return { isValid: true };
-    }
-
-    const data: PerspectiveResponse = await response.json();
-    const scores = data.attributeScores || {};
-
-    const toxicity = scores.TOXICITY?.summaryScore?.value || 0;
-    const severeToxicity = scores.SEVERE_TOXICITY?.summaryScore?.value || 0;
-    const insult = scores.INSULT?.summaryScore?.value || 0;
-    const profanity = scores.PROFANITY?.summaryScore?.value || 0;
-
-    const TOXICITY_THRESHOLD = 0.7;
-    const SEVERE_TOXICITY_THRESHOLD = 0.5;
-    const INSULT_THRESHOLD = 0.7;
-    const PROFANITY_THRESHOLD = 0.7;
-
-    const isToxic = toxicity > TOXICITY_THRESHOLD;
-    const isSeverelyToxic = severeToxicity > SEVERE_TOXICITY_THRESHOLD;
-    const isInsulting = insult > INSULT_THRESHOLD;
-    const isProfane = profanity > PROFANITY_THRESHOLD;
-
-    if (isToxic || isSeverelyToxic || isInsulting || isProfane) {
+    if (!gptAnalysis.isValid) {
       return {
         isValid: false,
-        reason: `El contenido no es apropiado. Por favor, usá un lenguaje respetuoso y positivo.`,
-        scores: {
-          toxicity,
-          severeToxicity,
-          insult,
-          profanity,
-        },
+        reason:
+          gptAnalysis.reason ||
+          "El contenido no es apropiado. Por favor, usá un lenguaje respetuoso y positivo.",
+        categories: gptAnalysis.categories,
+        scores: gptAnalysis.scores,
       };
     }
 
     return {
       isValid: true,
-      scores: {
-        toxicity,
-        severeToxicity,
-        insult,
-        profanity,
-      },
+      scores: gptAnalysis.scores,
     };
   } catch (error) {
-    console.error("Error validando contenido con Perspective API:", error);
+    console.error("Error validando contenido con GPT:", error);
     return { isValid: true };
   }
 }
@@ -128,6 +169,7 @@ export async function validateFormContent(
     }
 
     const result = await validateContent(text, fieldName);
+    console.log(`Moderation result for field ${fieldName}:`, result);
     if (!result.isValid && result.reason) {
       errors[fieldName] = result.reason;
     }

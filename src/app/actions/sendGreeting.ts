@@ -19,6 +19,7 @@ export interface GreetingFormState {
   message: string;
   errors?: Partial<Record<keyof GreetingFormData, string>>;
   videoId?: string;
+  formData?: GreetingFormData;
 }
 
 export async function sendGreeting(
@@ -75,6 +76,7 @@ export async function sendGreeting(
       success: false,
       message: "Por favor, corregí los errores en el formulario",
       errors,
+      formData: data,
     };
   }
 
@@ -89,15 +91,16 @@ export async function sendGreeting(
       success: false,
       message: "Por favor, corregí los errores en el formulario",
       errors: contentValidation.errors as Partial<Record<keyof GreetingFormData, string>>,
+      formData: data,
     };
   }
 
   try {
     let apiUrl = process.env.VIDEO_API_URL;
-    
+
     if (!apiUrl) {
       let baseUrl: string;
-      
+
       if (process.env.NEXT_PUBLIC_BASE_URL) {
         baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
       } else if (process.env.VERCEL_URL) {
@@ -107,10 +110,10 @@ export async function sendGreeting(
       } else {
         baseUrl = "http://localhost:3000";
       }
-      
+
       apiUrl = `${baseUrl}/api/generate-video`;
     }
-    
+
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
@@ -128,6 +131,9 @@ export async function sendGreeting(
       }),
     });
 
+    console.log("Response from video API:", response);
+
+
     if (!response.ok) {
       throw new Error("Error al procesar el video");
     }
@@ -144,6 +150,7 @@ export async function sendGreeting(
     return {
       success: false,
       message: "Hubo un error al procesar tu solicitud. Por favor intentá de nuevo.",
+      formData: data,
     };
   }
 }
