@@ -12,6 +12,7 @@ export interface VideoRequest {
   parentesco: string;
   email: string;
   provincia: string;
+  nombreNino: string;
   queHizo: string;
   recuerdoEspecial: string;
   pedidoNocheMagica: string;
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     const body: VideoRequest = await request.json();
 
-    if (!body.nombre || !body.email || !body.provincia) {
+    if (!body.nombre || !body.email || !body.provincia || !body.nombreNino) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }

@@ -9,6 +9,7 @@ export interface GreetingFormData {
   email: string;
   emailDomain: string;
   provincia: string;
+  nombreNino: string;
   queHizo: string;
   recuerdoEspecial: string;
   pedidoNocheMagica: string;
@@ -32,6 +33,7 @@ export async function sendGreeting(
     email: formData.get("email") as string,
     emailDomain: formData.get("emailDomain") as string,
     provincia: formData.get("provincia") as string,
+    nombreNino: formData.get("nombreNino") as string,
     queHizo: formData.get("queHizo") as string,
     recuerdoEspecial: formData.get("recuerdoEspecial") as string,
     pedidoNocheMagica: formData.get("pedidoNocheMagica") as string,
@@ -57,6 +59,10 @@ export async function sendGreeting(
 
   if (!data.provincia || !PROVINCIAS_ARGENTINA.includes(data.provincia as typeof PROVINCIAS_ARGENTINA[number])) {
     errors.provincia = "Seleccioná una provincia válida";
+  }
+
+  if (!data.nombreNino || data.nombreNino.trim().length < 2) {
+    errors.nombreNino = "El nombre del niño es requerido (mínimo 2 caracteres)";
   }
 
   if (!data.queHizo || data.queHizo.trim().length < 10) {
@@ -125,6 +131,7 @@ export async function sendGreeting(
         parentesco: data.parentesco,
         email: `${data.email}${data.emailDomain}`,
         provincia: data.provincia,
+        nombreNino: data.nombreNino,
         queHizo: data.queHizo,
         recuerdoEspecial: data.recuerdoEspecial,
         pedidoNocheMagica: data.pedidoNocheMagica,
