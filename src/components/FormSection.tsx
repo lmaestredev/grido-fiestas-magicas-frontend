@@ -370,6 +370,23 @@ export default function FormSection() {
               Información del destinatario
             </h3>
 
+            <div>
+              <motion.input
+                type="text"
+                name="nombreNino"
+                placeholder="Nombre"
+                defaultValue={state.formData?.nombreNino || ""}
+                className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
+                whileFocus={{ scale: 1.02, borderColor: "#0033A0" }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              />
+              {state.errors?.nombreNino && (
+                <p className="text-red-500 text-sm mt-1">
+                  {state.errors.nombreNino}
+                </p>
+              )}
+            </div>
+
             <div className="relative">
               <select
                 key={state.formData?.provincia || "default"}
@@ -397,23 +414,6 @@ export default function FormSection() {
               {state.errors?.provincia && (
                 <p className="text-red-500 text-sm mt-1">
                   {state.errors.provincia}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <motion.input
-                type="text"
-                name="nombreNino"
-                placeholder="Nombre del niño"
-                defaultValue={state.formData?.nombreNino || ""}
-                className="w-full h-[47px] px-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
-                whileFocus={{ scale: 1.02, borderColor: "#0033A0" }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              />
-              {state.errors?.nombreNino && (
-                <p className="text-red-500 text-sm mt-1">
-                  {state.errors.nombreNino}
                 </p>
               )}
             </div>

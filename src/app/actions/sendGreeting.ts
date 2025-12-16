@@ -1,7 +1,15 @@
 "use server";
 
+import { redirect } from "next/navigation";
+import { Redis } from "@upstash/redis";
+import { nanoid } from "nanoid";
 import { PROVINCIAS_ARGENTINA, EMAIL_DOMAINS } from "~/lib/constants";
 import { validateFormContent } from "~/lib/contentModeration";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 export interface GreetingFormData {
   nombre: string;
@@ -102,31 +110,14 @@ export async function sendGreeting(
   }
 
   try {
-    let apiUrl = process.env.VIDEO_API_URL;
+    // Generar ID único para el video
+    const videoId = nanoid(12);
 
-    if (!apiUrl) {
-      let baseUrl: string;
-
-      if (process.env.NEXT_PUBLIC_BASE_URL) {
-        baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-      } else if (process.env.VERCEL_URL) {
-        baseUrl = `https://${process.env.VERCEL_URL}`;
-      } else if (process.env.NODE_ENV === "production") {
-        baseUrl = "";
-      } else {
-        baseUrl = "http://localhost:3000";
-      }
-
-      apiUrl = `${baseUrl}/api/generate-video`;
-    }
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.VIDEO_API_SECRET || ""}`,
-      },
-      body: JSON.stringify({
+    // Crear el job para Redis
+    const job = {
+      videoId,
+      status: "pending",
+      data: {
         nombre: data.nombre,
         parentesco: data.parentesco,
         email: `${data.email}${data.emailDomain}`,
@@ -135,29 +126,39 @@ export async function sendGreeting(
         queHizo: data.queHizo,
         recuerdoEspecial: data.recuerdoEspecial,
         pedidoNocheMagica: data.pedidoNocheMagica,
-      }),
-    });
-
-    console.log("Response from video API:", response);
-
-
-    if (!response.ok) {
-      throw new Error("Error al procesar el video");
-    }
-
-    const result = await response.json();
-
-    return {
-      success: true,
-      message: "¡Tu saludo mágico se está generando! Te llegará por email en unos minutos. 🎄✨",
-      videoId: result.videoId,
+      },
+      createdAt: new Date().toISOString(),
     };
+
+    // Escribir directamente en Redis
+    await redis.set(`job:${videoId}`, JSON.stringify(job));
+    await redis.lpush("video:queue", videoId);
+
+    // Opcional: Notificar al worker si hay webhook configurado
+    if (process.env.WORKER_WEBHOOK_URL) {
+      fetch(process.env.WORKER_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId }),
+      }).catch(console.error);
+    }
   } catch (error) {
-    console.error("Error calling video API:", error);
+    // Si es un redirect de Next.js, re-lanzarlo
+    if (error && typeof error === "object" && "digest" in error && typeof error.digest === "string" && error.digest.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
+    console.error("Error writing to Redis:", error);
     return {
       success: false,
       message: "Hubo un error al procesar tu solicitud. Por favor intentá de nuevo.",
       formData: data,
     };
   }
+
+  // Redirigir a la página de confirmación con los parámetros (fuera del try-catch)
+  const params = new URLSearchParams({
+    parentesco: data.parentesco,
+    nombre: data.nombreNino,
+  });
+  redirect(`/confirmacion?${params.toString()}`);
 }
