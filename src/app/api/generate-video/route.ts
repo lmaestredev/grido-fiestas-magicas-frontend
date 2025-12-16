@@ -1,77 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
-import { nanoid } from "nanoid";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-export interface VideoRequest {
-  nombre: string;
-  parentesco: string;
-  email: string;
-  provincia: string;
-  nombreNino: string;
-  queHizo: string;
-  recuerdoEspecial: string;
-  pedidoNocheMagica: string;
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get("authorization");
-    const expectedAuth = `Bearer ${process.env.VIDEO_API_SECRET}`;
-
-    if (authHeader !== expectedAuth) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const body: VideoRequest = await request.json();
-
-    if (!body.nombre || !body.email || !body.provincia || !body.nombreNino) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    const videoId = nanoid(12);
-
-    const job = {
-      videoId,
-      status: "pending",
-      data: body,
-      createdAt: new Date().toISOString(),
-    };
-
-    await redis.set(`job:${videoId}`, JSON.stringify(job));
-    await redis.lpush("video:queue", videoId);
-
-    if (process.env.WORKER_WEBHOOK_URL) {
-      fetch(process.env.WORKER_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoId }),
-      }).catch(console.error);
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: "Video generation queued",
-      videoId,
-    });
-  } catch (error) {
-    console.error("Error in generate-video API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
+/**
+ * GET endpoint para consultar el estado de un video.
+ * El POST fue eliminado porque ahora se escribe directamente en Redis desde sendGreeting.
+ */
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
