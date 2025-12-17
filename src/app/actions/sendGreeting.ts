@@ -153,7 +153,7 @@ export async function sendGreeting(
   // Redirigir a la página de confirmación con los parámetros (fuera del try-catch)
   const params = new URLSearchParams({
     parentesco: data.parentesco,
-    nombre: data.nombreNino,
+    nombre: data.nombre,
   });
   redirect(`/confirmacion?${params.toString()}`);
 }

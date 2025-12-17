@@ -68,9 +68,7 @@ export default function ConfirmationSection({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            {nombre}
-            <br />
-            , recibirás tu saludo por correo electrónico pronto.
+            {nombre}, recibirás tu saludo por correo electrónico pronto.
           </motion.p>
         </div>
       </section>
