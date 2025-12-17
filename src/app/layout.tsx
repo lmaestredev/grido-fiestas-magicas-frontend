@@ -29,6 +29,20 @@ export const metadata: Metadata = {
   title: "Grido Fiestas Mágicas - Enviá tu saludo navideño",
   description:
     "Creá un saludo mágico de la mano de Papá Noel y Grido para estas fiestas",
+  icons: {
+    icon: [
+      {
+        url: "/images/FAVICON 16X16PX.jpg",
+        sizes: "16x16",
+        type: "image/jpeg",
+      },
+      {
+        url: "/images/FAVICON 32X32PX.jpg",
+        sizes: "32x32",
+        type: "image/jpeg",
+      },
+    ],
+  },
   openGraph: {
     title: "Grido Fiestas Mágicas - Enviá tu saludo navideño",
     description:

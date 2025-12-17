@@ -13,12 +13,13 @@ export default function PromoBanner() {
         style={{ aspectRatio: `${BANNER_DESKTOP_WIDTH}/${BANNER_DESKTOP_HEIGHT}` }}
       >
         <Image
-          src="/images/FOOTER-desktop.png"
+          src="/images/FOOTER-desktop.jpg"
           alt="Noche Mágica - Traé tu cartita a Papá Noel y llevate 1 helado de regalo. Te esperamos el 18/12, 18hs."
           fill
+          priority
           className="object-contain object-center scale-[1.002] translate-y-px"
           quality={100}
-          sizes="100vw"
+          sizes="(min-width: 768px) 100vw, 0px"
         />
       </div>
 
@@ -27,12 +28,13 @@ export default function PromoBanner() {
         style={{ aspectRatio: `${BANNER_MOBILE_WIDTH}/${BANNER_MOBILE_HEIGHT}` }}
       >
         <Image
-          src="/images/FOOTER-mobile.png"
+          src="/images/FOOTER-mobile.jpg"
           alt="Noche Mágica - Traé tu cartita a Papá Noel y llevate 1 helado de regalo. Te esperamos el 18/12, 18hs."
           fill
+          priority
           className="object-contain object-center"
           quality={100}
-          sizes="100vw"
+          sizes="(max-width: 767px) 100vw, 0px"
         />
       </div>
     </section>
