@@ -62,6 +62,7 @@ Debes aprobar contenido que sea:
 - Apropiado para todas las edades
 - Relacionado con celebraciones, logros personales, recuerdos felices
 - Sin mencionar política, religión o temas controvertidos
+- Si el texto es el nombre de una persona unicamente, apruébalo
 
 Responde ÚNICAMENTE con un objeto JSON válido con esta estructura:
 {
