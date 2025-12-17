@@ -434,40 +434,6 @@ export default function FormSection() {
                 </p>
               )}
             </div>
-
-            <div>
-              <motion.textarea
-                name="recuerdoEspecial"
-                placeholder="¿Un recuerdo especial para mencionarle?"
-                rows={3}
-                defaultValue={state.formData?.recuerdoEspecial || ""}
-                className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
-                whileFocus={{ scale: 1.01, borderColor: "#0033A0" }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              />
-              {state.errors?.recuerdoEspecial && (
-                <p className="text-red-500 text-sm mt-1">
-                  {state.errors.recuerdoEspecial}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <motion.textarea
-                name="pedidoNocheMagica"
-                placeholder="¿Cuál es su pedido de Noche Mágica?"
-                rows={3}
-                defaultValue={state.formData?.pedidoNocheMagica || ""}
-                className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
-                whileFocus={{ scale: 1.01, borderColor: "#0033A0" }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              />
-              {state.errors?.pedidoNocheMagica && (
-                <p className="text-red-500 text-sm mt-1">
-                  {state.errors.pedidoNocheMagica}
-                </p>
-              )}
-            </div>
           </div>
 
           {/* Submit Button - smaller on mobile */}

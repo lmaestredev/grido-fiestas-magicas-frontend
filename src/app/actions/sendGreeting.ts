@@ -19,8 +19,6 @@ export interface GreetingFormData {
   provincia: string;
   nombreNino: string;
   queHizo: string;
-  recuerdoEspecial: string;
-  pedidoNocheMagica: string;
 }
 
 export interface GreetingFormState {
@@ -42,19 +40,21 @@ export async function sendGreeting(
     emailDomain: formData.get("emailDomain") as string,
     provincia: formData.get("provincia") as string,
     nombreNino: formData.get("nombreNino") as string,
-    queHizo: formData.get("queHizo") as string,
-    recuerdoEspecial: formData.get("recuerdoEspecial") as string,
-    pedidoNocheMagica: formData.get("pedidoNocheMagica") as string,
+    queHizo: formData.get("queHizo") as string
   };
 
   const errors: Partial<Record<keyof GreetingFormData, string>> = {};
 
   if (!data.nombre || data.nombre.trim().length < 2) {
     errors.nombre = "El nombre es requerido (mínimo 2 caracteres)";
+  } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(data.nombre)) {
+    errors.nombre = "El nombre solo puede contener letras y espacios";
   }
 
   if (!data.parentesco || data.parentesco.trim().length < 2) {
     errors.parentesco = "El parentesco es requerido";
+  } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(data.parentesco)) {
+    errors.parentesco = "El parentesco solo puede contener letras y espacios";
   }
 
   if (!data.email || !/^[^\s@]+$/.test(data.email)) {
@@ -71,18 +71,14 @@ export async function sendGreeting(
 
   if (!data.nombreNino || data.nombreNino.trim().length < 2) {
     errors.nombreNino = "El nombre del niño es requerido (mínimo 2 caracteres)";
+  } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(data.nombreNino)) {
+    errors.nombreNino = "El nombre del niño solo puede contener letras y espacios";
   }
 
   if (!data.queHizo || data.queHizo.trim().length < 10) {
     errors.queHizo = "Contanos qué hizo en el año (mínimo 10 caracteres)";
-  }
-
-  if (!data.recuerdoEspecial || data.recuerdoEspecial.trim().length < 5) {
-    errors.recuerdoEspecial = "Compartí un recuerdo especial";
-  }
-
-  if (!data.pedidoNocheMagica || data.pedidoNocheMagica.trim().length < 5) {
-    errors.pedidoNocheMagica = "Contanos su pedido para la Noche Mágica";
+  } else if (data.queHizo.trim().length > 80) {
+    errors.queHizo = "El texto es muy largo (máximo 80 caracteres)";
   }
 
   if (Object.keys(errors).length > 0) {
@@ -96,8 +92,9 @@ export async function sendGreeting(
 
   const contentValidation = await validateFormContent({
     queHizo: data.queHizo,
-    recuerdoEspecial: data.recuerdoEspecial,
-    pedidoNocheMagica: data.pedidoNocheMagica,
+    nombre: data.nombre,
+    parentesco: data.parentesco,
+    nombreNino: data.nombreNino,
   });
 
   if (!contentValidation.isValid) {
@@ -123,9 +120,7 @@ export async function sendGreeting(
         email: `${data.email}${data.emailDomain}`,
         provincia: data.provincia,
         nombreNino: data.nombreNino,
-        queHizo: data.queHizo,
-        recuerdoEspecial: data.recuerdoEspecial,
-        pedidoNocheMagica: data.pedidoNocheMagica,
+        queHizo: data.queHizo
       },
       createdAt: new Date().toISOString(),
     };

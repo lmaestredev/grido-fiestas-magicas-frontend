@@ -92,7 +92,7 @@ Una vez deployado, verifica:
    curl -X POST https://tu-proyecto.vercel.app/api/generate-video \
      -H "Authorization: Bearer tu-secreto" \
      -H "Content-Type: application/json" \
-     -d '{"nombre":"Test","email":"test@test.com","provincia":"Buenos Aires","queHizo":"Test","recuerdoEspecial":"Test","pedidoNocheMagica":"Test","parentesco":"Test"}'
+     -d '{"nombre":"Test","email":"test@test.com","provincia":"Buenos Aires","queHizo":"Test"}'
    ```
 
 3. **Logs:** Revisa los logs en Vercel Dashboard → Deployments → [tu deploy] → Functions
