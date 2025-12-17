@@ -252,7 +252,7 @@ VIDEO_API_SECRET = tu-secreto-seguro-aqui
 curl -X POST https://tu-app.vercel.app/api/generate-video \
   -H "Authorization: Bearer tu-secreto-seguro-aqui" \
   -H "Content-Type: application/json" \
-  -d '{"nombre":"Test","email":"test@test.com","provincia":"Buenos Aires","queHizo":"Test","recuerdoEspecial":"Test","pedidoNocheMagica":"Test","parentesco":"Test"}'
+  -d '{"nombre":"Test","email":"test@test.com","provincia":"Buenos Aires","queHizo":"Test"}'
 ```
 
 ---

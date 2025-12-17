@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "motion/react";
+import Footer from "./Footer";
 
 interface ConfirmationSectionProps {
   parentesco?: string;
@@ -20,19 +21,15 @@ export default function ConfirmationSection({
   return (
     <main className="min-h-screen bg-white">
       {/* Top Section - Header Image */}
-      <section className="relative w-full overflow-hidden">
+      <section className="w-full">
         {/* Desktop Header */}
-        <div 
-          className="relative w-full hidden md:block"
-          style={{ 
-            aspectRatio: `${HEADER_DESKTOP_WIDTH}/${HEADER_DESKTOP_HEIGHT}`
-          }}
-        >
+        <div className="relative w-full hidden md:block">
           <Image
             src="/images/HEADER-feedback-formulario-desktop.png"
             alt="¡Papá Noel recibió tu solicitud!"
-            fill
-            className="object-contain object-center"
+            width={HEADER_DESKTOP_WIDTH}
+            height={HEADER_DESKTOP_HEIGHT}
+            className="w-full h-auto"
             priority
             quality={100}
             sizes="100vw"
@@ -40,17 +37,13 @@ export default function ConfirmationSection({
         </div>
 
         {/* Mobile Header */}
-        <div 
-          className="relative w-full md:hidden"
-          style={{ 
-            aspectRatio: `${HEADER_MOBILE_WIDTH}/${HEADER_MOBILE_HEIGHT}`
-          }}
-        >
+        <div className="relative w-full md:hidden">
           <Image
             src="/images/HEADER-feedback-formulario-mobile.png"
             alt="¡Papá Noel recibió tu solicitud!"
-            fill
-            className="object-contain object-center"
+            width={HEADER_MOBILE_WIDTH}
+            height={HEADER_MOBILE_HEIGHT}
+            className="w-full h-auto"
             priority
             quality={100}
             sizes="100vw"
@@ -82,53 +75,8 @@ export default function ConfirmationSection({
         </div>
       </section>
 
-      {/* Bottom Section - Dark Blue Footer */}
-      <footer className="bg-grido-primary-dark w-full">
-        <div className="max-w-7xl mx-auto px-6 lg:px-[141px] py-[55px]">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            {/* Grido Logo */}
-            <div className="shrink-0">
-              <Image
-                src="/images/grido-logo.png"
-                alt="Grido"
-                width={100}
-                height={71}
-                quality={100}
-                className="object-contain brightness-0 invert"
-              />
-            </div>
-
-            {/* Copyright Text */}
-            <p className="text-white text-center md:text-left max-w-[500px] text-sm md:text-base">
-              Copyright 2016. Todos los derechos reservados - Helacor - Córdoba
-              - Argentina
-            </p>
-
-            {/* Instagram Icon */}
-            <div className="shrink-0">
-              <motion.a
-                href="https://www.instagram.com/gridohelados/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Seguinos en Instagram"
-                whileHover={{ scale: 1.15, rotate: -5 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                className="block"
-              >
-                <Image
-                  src="/images/instagram-icon.png"
-                  alt="Instagram"
-                  width={26}
-                  height={26}
-                  quality={100}
-                  className="object-contain brightness-0 invert"
-                />
-              </motion.a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      {/* Bottom Section - Footer */}
+      <Footer />
     </main>
   );
 }

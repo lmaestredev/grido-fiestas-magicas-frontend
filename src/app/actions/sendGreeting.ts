@@ -1,7 +1,15 @@
 "use server";
 
+import { redirect } from "next/navigation";
+import { Redis } from "@upstash/redis";
+import { nanoid } from "nanoid";
 import { PROVINCIAS_ARGENTINA, EMAIL_DOMAINS } from "~/lib/constants";
 import { validateFormContent } from "~/lib/contentModeration";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 export interface GreetingFormData {
   nombre: string;
@@ -11,8 +19,6 @@ export interface GreetingFormData {
   provincia: string;
   nombreNino: string;
   queHizo: string;
-  recuerdoEspecial: string;
-  pedidoNocheMagica: string;
 }
 
 export interface GreetingFormState {
@@ -34,19 +40,21 @@ export async function sendGreeting(
     emailDomain: formData.get("emailDomain") as string,
     provincia: formData.get("provincia") as string,
     nombreNino: formData.get("nombreNino") as string,
-    queHizo: formData.get("queHizo") as string,
-    recuerdoEspecial: formData.get("recuerdoEspecial") as string,
-    pedidoNocheMagica: formData.get("pedidoNocheMagica") as string,
+    queHizo: formData.get("queHizo") as string
   };
 
   const errors: Partial<Record<keyof GreetingFormData, string>> = {};
 
   if (!data.nombre || data.nombre.trim().length < 2) {
     errors.nombre = "El nombre es requerido (mínimo 2 caracteres)";
+  } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(data.nombre)) {
+    errors.nombre = "El nombre solo puede contener letras y espacios";
   }
 
   if (!data.parentesco || data.parentesco.trim().length < 2) {
     errors.parentesco = "El parentesco es requerido";
+  } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(data.parentesco)) {
+    errors.parentesco = "El parentesco solo puede contener letras y espacios";
   }
 
   if (!data.email || !/^[^\s@]+$/.test(data.email)) {
@@ -63,18 +71,14 @@ export async function sendGreeting(
 
   if (!data.nombreNino || data.nombreNino.trim().length < 2) {
     errors.nombreNino = "El nombre del niño es requerido (mínimo 2 caracteres)";
+  } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(data.nombreNino)) {
+    errors.nombreNino = "El nombre del niño solo puede contener letras y espacios";
   }
 
   if (!data.queHizo || data.queHizo.trim().length < 10) {
     errors.queHizo = "Contanos qué hizo en el año (mínimo 10 caracteres)";
-  }
-
-  if (!data.recuerdoEspecial || data.recuerdoEspecial.trim().length < 5) {
-    errors.recuerdoEspecial = "Compartí un recuerdo especial";
-  }
-
-  if (!data.pedidoNocheMagica || data.pedidoNocheMagica.trim().length < 5) {
-    errors.pedidoNocheMagica = "Contanos su pedido para la Noche Mágica";
+  } else if (data.queHizo.trim().length > 80) {
+    errors.queHizo = "El texto es muy largo (máximo 80 caracteres)";
   }
 
   if (Object.keys(errors).length > 0) {
@@ -88,8 +92,9 @@ export async function sendGreeting(
 
   const contentValidation = await validateFormContent({
     queHizo: data.queHizo,
-    recuerdoEspecial: data.recuerdoEspecial,
-    pedidoNocheMagica: data.pedidoNocheMagica,
+    nombre: data.nombre,
+    parentesco: data.parentesco,
+    nombreNino: data.nombreNino,
   });
 
   if (!contentValidation.isValid) {
@@ -102,62 +107,53 @@ export async function sendGreeting(
   }
 
   try {
-    let apiUrl = process.env.VIDEO_API_URL;
+    // Generar ID único para el video
+    const videoId = nanoid(12);
 
-    if (!apiUrl) {
-      let baseUrl: string;
-
-      if (process.env.NEXT_PUBLIC_BASE_URL) {
-        baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-      } else if (process.env.VERCEL_URL) {
-        baseUrl = `https://${process.env.VERCEL_URL}`;
-      } else if (process.env.NODE_ENV === "production") {
-        baseUrl = "";
-      } else {
-        baseUrl = "http://localhost:3000";
-      }
-
-      apiUrl = `${baseUrl}/api/generate-video`;
-    }
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.VIDEO_API_SECRET || ""}`,
-      },
-      body: JSON.stringify({
+    // Crear el job para Redis
+    const job = {
+      videoId,
+      status: "pending",
+      data: {
         nombre: data.nombre,
         parentesco: data.parentesco,
         email: `${data.email}${data.emailDomain}`,
         provincia: data.provincia,
         nombreNino: data.nombreNino,
-        queHizo: data.queHizo,
-        recuerdoEspecial: data.recuerdoEspecial,
-        pedidoNocheMagica: data.pedidoNocheMagica,
-      }),
-    });
-
-    console.log("Response from video API:", response);
-
-
-    if (!response.ok) {
-      throw new Error("Error al procesar el video");
-    }
-
-    const result = await response.json();
-
-    return {
-      success: true,
-      message: "¡Tu saludo mágico se está generando! Te llegará por email en unos minutos. 🎄✨",
-      videoId: result.videoId,
+        queHizo: data.queHizo
+      },
+      createdAt: new Date().toISOString(),
     };
+
+    // Escribir directamente en Redis
+    await redis.set(`job:${videoId}`, JSON.stringify(job));
+    await redis.lpush("video:queue", videoId);
+
+    // Opcional: Notificar al worker si hay webhook configurado
+    if (process.env.WORKER_WEBHOOK_URL) {
+      fetch(process.env.WORKER_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId }),
+      }).catch(console.error);
+    }
   } catch (error) {
-    console.error("Error calling video API:", error);
+    // Si es un redirect de Next.js, re-lanzarlo
+    if (error && typeof error === "object" && "digest" in error && typeof error.digest === "string" && error.digest.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
+    console.error("Error writing to Redis:", error);
     return {
       success: false,
       message: "Hubo un error al procesar tu solicitud. Por favor intentá de nuevo.",
       formData: data,
     };
   }
+
+  // Redirigir a la página de confirmación con los parámetros (fuera del try-catch)
+  const params = new URLSearchParams({
+    parentesco: data.parentesco,
+    nombre: data.nombreNino,
+  });
+  redirect(`/confirmacion?${params.toString()}`);
 }
