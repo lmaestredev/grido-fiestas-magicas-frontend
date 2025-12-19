@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, useScroll, useTransform, useSpring } from "motion/react";
 import {
@@ -141,6 +141,17 @@ export default function FormSection() {
     initialState,
   );
   const sectionRef = useRef<HTMLElement>(null);
+  const queHizoRef = useRef<HTMLTextAreaElement>(null);
+  const [queHizoLength, setQueHizoLength] = useState(
+    state.formData?.queHizo?.length || 0
+  );
+
+  // Actualizar el contador cuando hay un valor por defecto
+  useEffect(() => {
+    if (state.formData?.queHizo) {
+      setQueHizoLength(state.formData.queHizo.length);
+    }
+  }, [state.formData?.queHizo]);
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -418,16 +429,25 @@ export default function FormSection() {
               )}
             </div>
 
-            <div>
+            <div className="relative">
               <motion.textarea
+                ref={queHizoRef}
                 name="queHizo"
                 placeholder="Contame que hizo en el año!"
                 rows={3}
+                maxLength={80}
                 defaultValue={state.formData?.queHizo || ""}
-                className="w-full px-4 py-4 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setQueHizoLength(value.length);
+                }}
+                className="w-full px-4 py-4 pb-8 border border-grido-primary-dark rounded-[10px] text-[16px] md:text-lg placeholder:text-grido-placeholder resize-none focus:ring-2 focus:ring-grido-primary/20 focus:outline-none transition-all duration-300"
                 whileFocus={{ scale: 1.01, borderColor: "#0033A0" }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               />
+              <div className="absolute bottom-2 right-3 text-xs text-grido-placeholder">
+                {queHizoLength}/80
+              </div>
               {state.errors?.queHizo && (
                 <p className="text-red-500 text-sm mt-1">
                   {state.errors.queHizo}
