@@ -127,7 +127,8 @@ export async function sendGreeting(
 
     // Escribir directamente en Redis
     await redis.set(`job:${videoId}`, JSON.stringify(job));
-    await redis.lpush("video:queue", videoId);
+    // RPUSH agrega al final de la cola (FIFO: mantiene orden de llegada)
+    await redis.rpush("video:queue", videoId);
 
     // Opcional: Notificar al worker si hay webhook configurado
     if (process.env.WORKER_WEBHOOK_URL) {
