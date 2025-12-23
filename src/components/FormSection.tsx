@@ -454,6 +454,9 @@ export default function FormSection() {
                 </p>
               )}
             </div>
+            <p className="text-xs text-grido-placeholder mt-1 px-1">
+                💡 Ejemplo: "Te sacaste una buena nota en la escuela".".
+              </p>
           </div>
 
           {/* Submit Button - smaller on mobile */}
