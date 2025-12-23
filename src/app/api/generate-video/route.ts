@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
     };
 
     await redis.set(`job:${videoId}`, JSON.stringify(job));
-    await redis.lpush("video:queue", videoId);
+    // RPUSH agrega al final de la cola (FIFO: mantiene orden de llegada)
+    await redis.rpush("video:queue", videoId);
 
     if (process.env.WORKER_WEBHOOK_URL) {
       fetch(process.env.WORKER_WEBHOOK_URL, {
